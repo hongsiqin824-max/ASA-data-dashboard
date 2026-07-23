@@ -1,0 +1,398 @@
+import { useMemo, useState } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import {
+  formatCurrency,
+  formatNumber,
+  formatPercent
+} from "../lib/format";
+import {
+  isRoiWindowMature,
+  latestRoiDateMs,
+  minimumRoiDaysAvailable,
+  roiDaysAvailable
+} from "../lib/roi-maturity";
+import type { DailyCampaignRow, DataPlatform } from "../lib/types";
+import { platformUi } from "../lib/platform";
+import { EmptyRoi, MiniRoi } from "./ui/MiniRoi";
+import { RoiCell } from "./ui/RoiCell";
+
+export type DailyCampaignTableSummary = Omit<DailyCampaignRow, "date"> & {
+  dayCount: number;
+};
+
+type SortDirection = "asc" | "desc";
+type SortKey =
+  | "date"
+  | "keywordCount"
+  | "impressions"
+  | "taps"
+  | "ttr"
+  | "tapInstalls"
+  | "tapNewDownloads"
+  | "tapRedownloads"
+  | "installs"
+  | "totalNewDownloads"
+  | "totalRedownloads"
+  | "activations"
+  | "registrations"
+  | "cost"
+  | "paymentRate"
+  | "adRevenue"
+  | "payRevenue"
+  | "totalRevenue"
+  | "roi"
+  | "d1Roi"
+  | "d2Roi"
+  | "d3Roi"
+  | "d4Roi"
+  | "d5Roi"
+  | "d6Roi"
+  | "d7Roi"
+  | "d15Roi"
+  | "d30Roi";
+
+type SortState = {
+  key: SortKey;
+  direction: SortDirection;
+} | null;
+
+type SortValue = string | number | null;
+
+const textSortKeys = new Set<SortKey>(["date"]);
+
+function sortValue(
+  row: DailyCampaignRow,
+  key: SortKey,
+  latestMs: number | null
+): SortValue {
+  if (!isRoiWindowMature(key, roiDaysAvailable(row.date, latestMs))) return null;
+  return row[key] as SortValue;
+}
+
+function compareSortValues(left: SortValue, right: SortValue, direction: SortDirection) {
+  const leftMissing = left === null || left === "";
+  const rightMissing = right === null || right === "";
+  if (leftMissing && rightMissing) return 0;
+  if (leftMissing) return 1;
+  if (rightMissing) return -1;
+
+  const result =
+    typeof left === "number" && typeof right === "number"
+      ? left - right
+      : String(left).localeCompare(String(right), "zh-CN", {
+          numeric: true,
+          sensitivity: "base"
+        });
+  return direction === "asc" ? result : -result;
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  sort,
+  onSort
+}: {
+  label: string;
+  sortKey: SortKey;
+  sort: SortState;
+  onSort: (key: SortKey) => void;
+}) {
+  const active = sort?.key === sortKey;
+  const Icon = !active ? ArrowUpDown : sort.direction === "asc" ? ArrowUp : ArrowDown;
+  const directionLabel = !active
+    ? "未排序"
+    : sort.direction === "asc"
+      ? "升序"
+      : "降序";
+
+  return (
+    <th aria-sort={active ? (sort.direction === "asc" ? "ascending" : "descending") : "none"}>
+      <button
+        className={`th-sort-button ${active ? "active" : ""}`}
+        type="button"
+        title={`${label}排序，当前${directionLabel}`}
+        onClick={() => onSort(sortKey)}
+      >
+        <span>{label}</span>
+        <Icon size={13} />
+      </button>
+    </th>
+  );
+}
+
+// 计划内「逐日」ROI 趋势表：该计划下所有关键词每日数据按 date 汇总。
+export function DailyCampaignTable({
+  rows,
+  summary,
+  maturityRows,
+  dataAsOfDate,
+  platform = "iOS",
+  onOpenKeywords
+}: {
+  rows: DailyCampaignRow[];
+  summary?: DailyCampaignTableSummary;
+  maturityRows?: DailyCampaignRow[];
+  dataAsOfDate?: string | null;
+  platform?: DataPlatform;
+  onOpenKeywords?: (date: string) => void;
+}) {
+  const ui = platformUi(platform);
+  const [sort, setSort] = useState<SortState>(null);
+  const latestMs = useMemo(
+    () =>
+      latestRoiDateMs([
+        dataAsOfDate,
+        ...(maturityRows ?? rows).map((row) => row.date)
+      ]),
+    [dataAsOfDate, maturityRows, rows]
+  );
+  const summaryAvailableDays = useMemo(
+    () => minimumRoiDaysAvailable(rows.map((row) => row.date), latestMs),
+    [latestMs, rows]
+  );
+  const sortedRows = useMemo(() => {
+    if (!sort) return rows;
+    return [...rows].sort((left, right) => {
+      const result = compareSortValues(
+        sortValue(left, sort.key, latestMs),
+        sortValue(right, sort.key, latestMs),
+        sort.direction
+      );
+      return result || right.date.localeCompare(left.date);
+    });
+  }, [rows, sort, latestMs]);
+
+  function renderSummaryWindowRoi(value: number, key: SortKey) {
+    if (!isRoiWindowMature(key, summaryAvailableDays)) {
+      return <EmptyRoi />;
+    }
+    return <MiniRoi value={value} />;
+  }
+
+  function renderRowWindowRoi(row: DailyCampaignRow, key: SortKey) {
+    if (!isRoiWindowMature(key, roiDaysAvailable(row.date, latestMs))) {
+      return <EmptyRoi />;
+    }
+    return <MiniRoi value={row[key as keyof DailyCampaignRow] as number} />;
+  }
+
+  function toggleSort(key: SortKey) {
+    setSort((current) => {
+      if (current?.key === key) {
+        return {
+          key,
+          direction: current.direction === "desc" ? "asc" : "desc"
+        };
+      }
+      return {
+        key,
+        direction: textSortKeys.has(key) ? "desc" : "desc"
+      };
+    });
+  }
+
+  return (
+    <div className="table-scroll daily-table-scroll">
+      <table className="daily-table">
+        <thead>
+          <tr>
+            <SortableHeader label="日期" sortKey="date" sort={sort} onSort={toggleSort} />
+            <SortableHeader label={ui.childEntity} sortKey="keywordCount" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="展示" sortKey="impressions" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="点击" sortKey="taps" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="点击率" sortKey="ttr" sort={sort} onSort={toggleSort} />
+            {ui.hasIosInstallBreakdown ? (
+              <>
+                <SortableHeader label="点击安装" sortKey="tapInstalls" sort={sort} onSort={toggleSort} />
+                <SortableHeader label="点击新下载" sortKey="tapNewDownloads" sort={sort} onSort={toggleSort} />
+                <SortableHeader label="点击重下载" sortKey="tapRedownloads" sort={sort} onSort={toggleSort} />
+                <SortableHeader label="总安装" sortKey="installs" sort={sort} onSort={toggleSort} />
+                <SortableHeader label="总新下载" sortKey="totalNewDownloads" sort={sort} onSort={toggleSort} />
+                <SortableHeader label="总重下载" sortKey="totalRedownloads" sort={sort} onSort={toggleSort} />
+              </>
+            ) : (
+              <SortableHeader label="下载" sortKey="installs" sort={sort} onSort={toggleSort} />
+            )}
+            <SortableHeader label="激活" sortKey="activations" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="注册" sortKey="registrations" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="总成本" sortKey="cost" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="付费率" sortKey="paymentRate" sort={sort} onSort={toggleSort} />
+            {ui.hasAdRevenue ? (
+              <>
+                <SortableHeader label="广告收入" sortKey="adRevenue" sort={sort} onSort={toggleSort} />
+                <SortableHeader label="付费收入" sortKey="payRevenue" sort={sort} onSort={toggleSort} />
+              </>
+            ) : (
+              <>
+                <th>会员收入</th>
+                <th>充值收入</th>
+              </>
+            )}
+            <SortableHeader label="总收益" sortKey="totalRevenue" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="总ROI" sortKey="roi" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="1日ROI" sortKey="d1Roi" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="2日ROI" sortKey="d2Roi" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="3日ROI" sortKey="d3Roi" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="4日ROI" sortKey="d4Roi" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="5日ROI" sortKey="d5Roi" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="6日ROI" sortKey="d6Roi" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="7日ROI" sortKey="d7Roi" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="15日ROI" sortKey="d15Roi" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="30日ROI" sortKey="d30Roi" sort={sort} onSort={toggleSort} />
+          </tr>
+        </thead>
+        <tbody>
+          {summary ? (
+            <tr className="keyword-summary-row">
+              <td className="date-cell">
+                <strong>当前列表汇总</strong>
+                <span>{formatNumber(summary.dayCount)} 天</span>
+              </td>
+              <td>{formatNumber(summary.keywordCount)}</td>
+              <td>{formatNumber(summary.impressions)}</td>
+              <td>{formatNumber(summary.taps)}</td>
+              <td>{formatPercent(summary.ttr)}</td>
+              {ui.hasIosInstallBreakdown ? (
+                <>
+                  <td>{formatNumber(summary.tapInstalls)}</td>
+                  <td>{formatNumber(summary.tapNewDownloads)}</td>
+                  <td>{formatNumber(summary.tapRedownloads)}</td>
+                  <td>{formatNumber(summary.installs)}</td>
+                  <td>{formatNumber(summary.totalNewDownloads)}</td>
+                  <td>{formatNumber(summary.totalRedownloads)}</td>
+                </>
+              ) : (
+                <td>{formatNumber(summary.installs)}</td>
+              )}
+              <td>{formatNumber(summary.activations)}</td>
+              <td>{formatNumber(summary.registrations)}</td>
+              <td>{formatCurrency(summary.cost)}</td>
+              <td>{formatPercent(summary.paymentRate)}</td>
+              {ui.hasAdRevenue ? (
+                <>
+                  <td>{formatCurrency(summary.adRevenue)}</td>
+                  <td>{formatCurrency(summary.payRevenue)}</td>
+                </>
+              ) : (
+                <>
+                  <td>{formatCurrency(summary.vipRevenue)}</td>
+                  <td>{formatCurrency(summary.rechargeRevenue)}</td>
+                </>
+              )}
+              <td>{formatCurrency(summary.totalRevenue)}</td>
+              <td>
+                <RoiCell value={summary.roi} />
+              </td>
+              <td>
+                {renderSummaryWindowRoi(summary.d1Roi, "d1Roi")}
+              </td>
+              <td>
+                {renderSummaryWindowRoi(summary.d2Roi, "d2Roi")}
+              </td>
+              <td>
+                {renderSummaryWindowRoi(summary.d3Roi, "d3Roi")}
+              </td>
+              <td>
+                {renderSummaryWindowRoi(summary.d4Roi, "d4Roi")}
+              </td>
+              <td>
+                {renderSummaryWindowRoi(summary.d5Roi, "d5Roi")}
+              </td>
+              <td>
+                {renderSummaryWindowRoi(summary.d6Roi, "d6Roi")}
+              </td>
+              <td>
+                {renderSummaryWindowRoi(summary.d7Roi, "d7Roi")}
+              </td>
+              <td>
+                {renderSummaryWindowRoi(summary.d15Roi, "d15Roi")}
+              </td>
+              <td>
+                {renderSummaryWindowRoi(summary.d30Roi, "d30Roi")}
+              </td>
+            </tr>
+          ) : null}
+          {sortedRows.map((row) => (
+            <tr key={row.date}>
+              <td className="date-cell">{row.date}</td>
+              <td>
+                {onOpenKeywords ? (
+                  <button
+                    className="table-link-button"
+                    type="button"
+                    onClick={() => onOpenKeywords(row.date)}
+                  >
+                    {formatNumber(row.keywordCount)}
+                  </button>
+                ) : (
+                  formatNumber(row.keywordCount)
+                )}
+              </td>
+              <td>{formatNumber(row.impressions)}</td>
+              <td>{formatNumber(row.taps)}</td>
+              <td>{formatPercent(row.ttr)}</td>
+              {ui.hasIosInstallBreakdown ? (
+                <>
+                  <td>{formatNumber(row.tapInstalls)}</td>
+                  <td>{formatNumber(row.tapNewDownloads)}</td>
+                  <td>{formatNumber(row.tapRedownloads)}</td>
+                  <td>{formatNumber(row.installs)}</td>
+                  <td>{formatNumber(row.totalNewDownloads)}</td>
+                  <td>{formatNumber(row.totalRedownloads)}</td>
+                </>
+              ) : (
+                <td>{formatNumber(row.installs)}</td>
+              )}
+              <td>{formatNumber(row.activations)}</td>
+              <td>{formatNumber(row.registrations)}</td>
+              <td>{formatCurrency(row.cost)}</td>
+              <td>{formatPercent(row.paymentRate)}</td>
+              {ui.hasAdRevenue ? (
+                <>
+                  <td>{formatCurrency(row.adRevenue)}</td>
+                  <td>{formatCurrency(row.payRevenue)}</td>
+                </>
+              ) : (
+                <>
+                  <td>{formatCurrency(row.vipRevenue)}</td>
+                  <td>{formatCurrency(row.rechargeRevenue)}</td>
+                </>
+              )}
+              <td>{formatCurrency(row.totalRevenue)}</td>
+              <td>
+                <RoiCell value={row.roi} />
+              </td>
+              <td>
+                {renderRowWindowRoi(row, "d1Roi")}
+              </td>
+              <td>
+                {renderRowWindowRoi(row, "d2Roi")}
+              </td>
+              <td>
+                {renderRowWindowRoi(row, "d3Roi")}
+              </td>
+              <td>
+                {renderRowWindowRoi(row, "d4Roi")}
+              </td>
+              <td>
+                {renderRowWindowRoi(row, "d5Roi")}
+              </td>
+              <td>
+                {renderRowWindowRoi(row, "d6Roi")}
+              </td>
+              <td>
+                {renderRowWindowRoi(row, "d7Roi")}
+              </td>
+              <td>
+                {renderRowWindowRoi(row, "d15Roi")}
+              </td>
+              <td>
+                {renderRowWindowRoi(row, "d30Roi")}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
