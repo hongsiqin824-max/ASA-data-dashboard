@@ -18,6 +18,8 @@ dist
 # 本地开发与 Agent 临时记录
 .planning/
 .dev-context.md
+PROJECT_CONTEXT.md
+docs/superpowers/
 findings.md
 progress.md
 task_plan.md

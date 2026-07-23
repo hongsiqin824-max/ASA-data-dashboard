@@ -72,6 +72,4 @@ npm run build
 pm2 restart asa-roi --update-env
 ```
 
-部署时不要覆盖服务器 `.env.local`，也不要上传 `node_modules`、`dist` 和本地日志。
-
-更完整的业务口径、功能状态与部署记录请阅读 [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)。
+同步源码时必须使用仓库内的 `.deployignore` 排除清单，避免覆盖服务器 `.env.local`，也避免上传依赖、构建产物、个人本地上下文和开发过程记录。

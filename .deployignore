@@ -1,0 +1,16 @@
+.git/
+.env
+.env.*
+node_modules/
+dist/
+*.log
+.DS_Store
+
+# 个人本地上下文与开发过程记录
+PROJECT_CONTEXT.md
+docs/superpowers/
+.planning/
+.dev-context.md
+findings.md
+progress.md
+task_plan.md
