@@ -248,7 +248,9 @@ export function CampaignListPage({
       ? `搜索“${search.trim()}”命中 ${formatNumber(visibleRows.length)} / ${formatNumber(campaignRows.length)} 个${ui.parentEntity}`
       : campaignRoiFilter !== "all" || campaignScaleFilter !== "all"
         ? `当前筛选命中 ${formatNumber(visibleRows.length)} / ${formatNumber(campaignRows.length)} 个${ui.parentEntity}`
-      : `当前区间共 ${formatNumber(campaignRows.length)} 个投放${ui.parentEntity}，点击${ui.parentEntity}查看逐日 ROI 与${ui.childEntity}`;
+      : ui.hasChildEntity
+        ? `当前区间共 ${formatNumber(campaignRows.length)} 个投放${ui.parentEntity}，点击${ui.parentEntity}查看逐日 ROI 与${ui.childEntity}`
+        : `当前区间共 ${formatNumber(campaignRows.length)} 个${ui.parentEntity}，点击${ui.parentEntity}查看逐日 ROI 趋势`;
   const keywordSubtitle = !hasKeywords
     ? scopedDateKeywordLoading
       ? `正在读取 ${keywordScope.type === "date" ? keywordScope.label : ""} 的${ui.childEntity}`
@@ -263,8 +265,8 @@ export function CampaignListPage({
     : dailyQ || dailyRoiFilter !== "all"
       ? `当前筛选命中 ${formatNumber(visibleDailyRows.length)} / ${formatNumber(dailyRows.length)} 天`
       : `当前区间共 ${formatNumber(dailyRows.length)} 天数据，按日核验成本、收益、ROI 与转化字段`;
-  const showingKeywords = view === "keywords";
-  const showingCampaigns = view === "campaigns";
+  const showingKeywords = ui.hasChildEntity && view === "keywords";
+  const showingCampaigns = !ui.hasChildEntity || view === "campaigns";
   const showingDaily = view === "daily";
   const title = showingKeywords
     ? ui.childEntity
@@ -297,11 +299,18 @@ export function CampaignListPage({
                       : "keywords";
                 onViewChange(nextView);
               }}
-              options={[
-                { value: "keywords", label: ui.childEntity },
-                { value: "campaigns", label: ui.parentEntity },
-                { value: "daily", label: "日期" }
-              ]}
+              options={
+                ui.hasChildEntity
+                  ? [
+                      { value: "keywords", label: ui.childEntity },
+                      { value: "campaigns", label: ui.parentEntity },
+                      { value: "daily", label: "日期" }
+                    ]
+                  : [
+                      { value: "campaigns", label: ui.parentEntity },
+                      { value: "daily", label: "日期" }
+                    ]
+              }
             />
             {showingKeywords && hasKeywords ? (
               <div className="field-control compact-select">
@@ -442,7 +451,9 @@ export function CampaignListPage({
                 <input
                   aria-label={`搜索${ui.parentEntity}`}
                   type="search"
-                  placeholder={`搜索${ui.parentEntity}名 / ID`}
+                  placeholder={
+                    ui.hasChildEntity ? `搜索${ui.parentEntity}名 / ID` : "搜索计划名 / ID"
+                  }
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                 />
@@ -483,7 +494,7 @@ export function CampaignListPage({
             latestDateMs={latestDateMs}
             summaryAvailableDays={summaryAvailableDays}
             onOpen={onOpen}
-            onOpenKeywords={onOpenCampaignKeywords}
+            onOpenKeywords={ui.hasChildEntity ? onOpenCampaignKeywords : undefined}
           />
         ) : (
           <DailyCampaignTable
@@ -492,7 +503,7 @@ export function CampaignListPage({
             maturityRows={dailyRows}
             dataAsOfDate={data?.dataAsOfDate}
             platform={query.platform}
-            onOpenKeywords={onOpenDateKeywords}
+            onOpenKeywords={ui.hasChildEntity ? onOpenDateKeywords : undefined}
           />
         )}
       </section>

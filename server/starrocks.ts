@@ -9,6 +9,7 @@ import {
   buildPlatformSourceRelation,
   platformKeywordSearchColumn
 } from "./platform-query-source";
+import { XHS_WORLD_CUP_RANGE } from "./platform";
 import { round, type RevenueMode } from "./shared";
 
 // StarRocks（MySQL 协议）连接池。账号/连接信息从环境变量读取（见 .env.local）。
@@ -81,8 +82,15 @@ function buildFilters(params: LiveQueryParams, alias = "") {
   const clauses: string[] = [`${column("day")} BETWEEN ? AND ?`];
   const values: Array<string> = [params.startDate, params.endDate];
   if (params.keyword) {
-    clauses.push(`${column(platformKeywordSearchColumn(params.platform))} LIKE ?`);
-    values.push(`%${params.keyword}%`);
+    if (params.platform === "Xiaohongshu") {
+      clauses.push(
+        `(${column("campaign_name")} LIKE ? OR ${column("campaign_id")} LIKE ?)`
+      );
+      values.push(`%${params.keyword}%`, `%${params.keyword}%`);
+    } else {
+      clauses.push(`${column(platformKeywordSearchColumn(params.platform))} LIKE ?`);
+      values.push(`%${params.keyword}%`);
+    }
   }
   if (params.keywordId) {
     clauses.push(`${column("keyword_id")} = ?`);
@@ -138,9 +146,12 @@ function dbDay(value: unknown): string | null {
 async function fetchSummaryRows(params: LiveQueryParams): Promise<KeywordRow[]> {
   const { where, values } = buildFilters(params);
   const table = buildPlatformSourceRelation(params.platform);
+  const advertiserSelect =
+    params.platform === "Xiaohongshu" ? "MAX(t.advertiser_id)" : "''";
   const sql = `SELECT
       t.campaign_id,
       MAX(t.campaign_name) AS campaign_name,
+      ${advertiserSelect} AS advertiser_id,
       t.ad_group_id,
       MAX(t.ad_group_name) AS ad_group_name,
       t.keyword_id,
@@ -256,6 +267,7 @@ function mapSummaryRow(
     activeDays: num(r.active_days),
     campaignId: String(r.campaign_id ?? ""),
     campaignName: String(r.campaign_name ?? ""),
+    advertiserId: String(r.advertiser_id ?? ""),
     adGroupId: String(r.ad_group_id ?? ""),
     adGroupName: String(r.ad_group_name ?? ""),
     keywordId: String(r.keyword_id ?? ""),
@@ -320,9 +332,18 @@ async function fetchKeywordHistory(params: LiveQueryParams) {
   const table = buildPlatformSourceRelation(params.platform);
   const clauses: string[] = [];
   const values: string[] = [];
+  if (params.platform === "Xiaohongshu") {
+    clauses.push("day BETWEEN ? AND ?");
+    values.push(XHS_WORLD_CUP_RANGE.startDate, XHS_WORLD_CUP_RANGE.endDate);
+  }
   if (params.keyword) {
-    clauses.push(`${platformKeywordSearchColumn(params.platform)} LIKE ?`);
-    values.push(`%${params.keyword}%`);
+    if (params.platform === "Xiaohongshu") {
+      clauses.push("(campaign_name LIKE ? OR campaign_id LIKE ?)");
+      values.push(`%${params.keyword}%`, `%${params.keyword}%`);
+    } else {
+      clauses.push(`${platformKeywordSearchColumn(params.platform)} LIKE ?`);
+      values.push(`%${params.keyword}%`);
+    }
   }
   if (params.campaignId) {
     clauses.push("campaign_id = ?");
@@ -369,8 +390,10 @@ async function fetchKeywordHistory(params: LiveQueryParams) {
 async function fetchDailyRows(params: LiveQueryParams): Promise<DailyKeywordRow[]> {
   const { where, values } = buildFilters(params);
   const table = buildPlatformSourceRelation(params.platform);
+  const advertiserSelect =
+    params.platform === "Xiaohongshu" ? "advertiser_id" : "'' AS advertiser_id";
   const sql = `SELECT
-      day, campaign_id, campaign_name, ad_group_id, ad_group_name, keyword_id, keyword,
+      day, campaign_id, campaign_name, ${advertiserSelect}, ad_group_id, ad_group_name, keyword_id, keyword,
       impressions, taps, tap_installs, tap_new_downloads, tap_redownloads,
       total_installs, total_new_downloads, total_redownloads,
       new_user_cnt, new_register_cnt, spend, cost_per_activation, cost_per_register,
@@ -642,6 +665,7 @@ function mapDailyRow(
     date: String(r.day ?? ""),
     campaignId: String(r.campaign_id ?? ""),
     campaignName: String(r.campaign_name ?? ""),
+    advertiserId: String(r.advertiser_id ?? ""),
     adGroupId: String(r.ad_group_id ?? ""),
     adGroupName: String(r.ad_group_name ?? ""),
     keywordId: String(r.keyword_id ?? ""),
@@ -694,6 +718,8 @@ function mapDailyRow(
 }
 
 async function fetchAdGroups(params: LiveQueryParams) {
+  if (params.platform === "Xiaohongshu") return [];
+
   const table = buildPlatformSourceRelation(params.platform);
   const sql = `SELECT DISTINCT ad_group_id, ad_group_name FROM ${table} source_groups
     WHERE day BETWEEN ? AND ? ORDER BY ad_group_name`;
@@ -709,8 +735,15 @@ async function fetchAdGroups(params: LiveQueryParams) {
 
 async function fetchDataAsOfDate(params: LiveQueryParams) {
   const table = buildPlatformSourceRelation(params.platform);
+  const where =
+    params.platform === "Xiaohongshu" ? " WHERE day BETWEEN ? AND ?" : "";
+  const values =
+    params.platform === "Xiaohongshu"
+      ? [XHS_WORLD_CUP_RANGE.startDate, XHS_WORLD_CUP_RANGE.endDate]
+      : [];
   const [result] = await getPool().query(
-    `SELECT MAX(day) AS data_as_of_date FROM ${table} source_max`
+    `SELECT MAX(day) AS data_as_of_date FROM ${table} source_max${where}`,
+    values
   );
   const row = (result as unknown as Record<string, unknown>[])[0];
   return dbDay(row?.data_as_of_date);

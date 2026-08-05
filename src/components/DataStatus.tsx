@@ -24,11 +24,12 @@ function statusCopy({
   const elapsed = loadState.startedAt ? now - loadState.startedAt : 0;
   const rowCount = data ? data.rows.length : 0;
   const serverCache = data?.source.cache;
+  const rowEntity = data?.platform === "Xiaohongshu" ? "推广计划" : "关键词";
 
   if (loadState.isFetching && data && loadState.fromCache) {
     return {
       title: "显示缓存数据，正在后台同步",
-      detail: `已等待 ${formatDuration(elapsed)}，当前缓存 ${formatNumber(rowCount)} 个关键词`
+      detail: `已等待 ${formatDuration(elapsed)}，当前缓存 ${formatNumber(rowCount)} 个${rowEntity}`
     };
   }
 
@@ -68,7 +69,7 @@ function statusCopy({
       };
     }
     return {
-      title: "当前筛选无匹配关键词",
+      title: `当前筛选无匹配${rowEntity}`,
       detail: "可以调整日期或筛选条件，也可以重新读取数仓"
     };
   }
@@ -84,7 +85,7 @@ function statusCopy({
     if (serverCache?.status === "hit") {
       return {
         title: "已使用服务器缓存",
-        detail: `${formatNumber(rowCount)} 个关键词，缓存于 ${formatDateTime(
+        detail: `${formatNumber(rowCount)} 个${rowEntity}，缓存于 ${formatDateTime(
           serverCache.cachedAt
         )}，接口耗时 ${(loadState.lastFetchDurationMs / 1000).toFixed(1)} 秒`
       };
@@ -93,7 +94,7 @@ function statusCopy({
     if (serverCache?.status === "refresh") {
       return {
         title: "数据已刷新",
-        detail: `${formatNumber(rowCount)} 个关键词，耗时 ${(
+        detail: `${formatNumber(rowCount)} 个${rowEntity}，耗时 ${(
           loadState.lastFetchDurationMs / 1000
         ).toFixed(1)} 秒`
       };
@@ -101,7 +102,7 @@ function statusCopy({
 
     return {
       title: "数据已同步",
-      detail: `${formatNumber(rowCount)} 个关键词，耗时 ${(
+      detail: `${formatNumber(rowCount)} 个${rowEntity}，耗时 ${(
         loadState.lastFetchDurationMs / 1000
       ).toFixed(1)} 秒`
     };

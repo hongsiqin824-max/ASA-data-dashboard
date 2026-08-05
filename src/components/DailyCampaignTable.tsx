@@ -36,6 +36,7 @@ type SortKey =
   | "activations"
   | "registrations"
   | "cost"
+  | "totalPayUv"
   | "paymentRate"
   | "adRevenue"
   | "payRevenue"
@@ -197,7 +198,9 @@ export function DailyCampaignTable({
         <thead>
           <tr>
             <SortableHeader label="日期" sortKey="date" sort={sort} onSort={toggleSort} />
-            <SortableHeader label={ui.childEntity} sortKey="keywordCount" sort={sort} onSort={toggleSort} />
+            {ui.hasChildEntity ? (
+              <SortableHeader label={ui.childEntity} sortKey="keywordCount" sort={sort} onSort={toggleSort} />
+            ) : null}
             <SortableHeader label="展示" sortKey="impressions" sort={sort} onSort={toggleSort} />
             <SortableHeader label="点击" sortKey="taps" sort={sort} onSort={toggleSort} />
             <SortableHeader label="点击率" sortKey="ttr" sort={sort} onSort={toggleSort} />
@@ -210,13 +213,18 @@ export function DailyCampaignTable({
                 <SortableHeader label="总新下载" sortKey="totalNewDownloads" sort={sort} onSort={toggleSort} />
                 <SortableHeader label="总重下载" sortKey="totalRedownloads" sort={sort} onSort={toggleSort} />
               </>
-            ) : (
+            ) : ui.hasInstallMetric ? (
               <SortableHeader label="下载" sortKey="installs" sort={sort} onSort={toggleSort} />
-            )}
+            ) : null}
             <SortableHeader label="激活" sortKey="activations" sort={sort} onSort={toggleSort} />
             <SortableHeader label="注册" sortKey="registrations" sort={sort} onSort={toggleSort} />
             <SortableHeader label="总成本" sortKey="cost" sort={sort} onSort={toggleSort} />
-            <SortableHeader label="付费率" sortKey="paymentRate" sort={sort} onSort={toggleSort} />
+            <SortableHeader
+              label={ui.hasPaymentRate ? "付费率" : "付费UV"}
+              sortKey={ui.hasPaymentRate ? "paymentRate" : "totalPayUv"}
+              sort={sort}
+              onSort={toggleSort}
+            />
             {ui.hasAdRevenue ? (
               <>
                 <SortableHeader label="广告收入" sortKey="adRevenue" sort={sort} onSort={toggleSort} />
@@ -248,7 +256,7 @@ export function DailyCampaignTable({
                 <strong>当前列表汇总</strong>
                 <span>{formatNumber(summary.dayCount)} 天</span>
               </td>
-              <td>{formatNumber(summary.keywordCount)}</td>
+              {ui.hasChildEntity ? <td>{formatNumber(summary.keywordCount)}</td> : null}
               <td>{formatNumber(summary.impressions)}</td>
               <td>{formatNumber(summary.taps)}</td>
               <td>{formatPercent(summary.ttr)}</td>
@@ -261,13 +269,17 @@ export function DailyCampaignTable({
                   <td>{formatNumber(summary.totalNewDownloads)}</td>
                   <td>{formatNumber(summary.totalRedownloads)}</td>
                 </>
-              ) : (
+              ) : ui.hasInstallMetric ? (
                 <td>{formatNumber(summary.installs)}</td>
-              )}
+              ) : null}
               <td>{formatNumber(summary.activations)}</td>
               <td>{formatNumber(summary.registrations)}</td>
               <td>{formatCurrency(summary.cost)}</td>
-              <td>{formatPercent(summary.paymentRate)}</td>
+              <td>
+                {ui.hasPaymentRate
+                  ? formatPercent(summary.paymentRate)
+                  : formatNumber(summary.totalPayUv)}
+              </td>
               {ui.hasAdRevenue ? (
                 <>
                   <td>{formatCurrency(summary.adRevenue)}</td>
@@ -315,19 +327,21 @@ export function DailyCampaignTable({
           {sortedRows.map((row) => (
             <tr key={row.date}>
               <td className="date-cell">{row.date}</td>
-              <td>
-                {onOpenKeywords ? (
-                  <button
-                    className="table-link-button"
-                    type="button"
-                    onClick={() => onOpenKeywords(row.date)}
-                  >
-                    {formatNumber(row.keywordCount)}
-                  </button>
-                ) : (
-                  formatNumber(row.keywordCount)
-                )}
-              </td>
+              {ui.hasChildEntity ? (
+                <td>
+                  {onOpenKeywords ? (
+                    <button
+                      className="table-link-button"
+                      type="button"
+                      onClick={() => onOpenKeywords(row.date)}
+                    >
+                      {formatNumber(row.keywordCount)}
+                    </button>
+                  ) : (
+                    formatNumber(row.keywordCount)
+                  )}
+                </td>
+              ) : null}
               <td>{formatNumber(row.impressions)}</td>
               <td>{formatNumber(row.taps)}</td>
               <td>{formatPercent(row.ttr)}</td>
@@ -340,13 +354,17 @@ export function DailyCampaignTable({
                   <td>{formatNumber(row.totalNewDownloads)}</td>
                   <td>{formatNumber(row.totalRedownloads)}</td>
                 </>
-              ) : (
+              ) : ui.hasInstallMetric ? (
                 <td>{formatNumber(row.installs)}</td>
-              )}
+              ) : null}
               <td>{formatNumber(row.activations)}</td>
               <td>{formatNumber(row.registrations)}</td>
               <td>{formatCurrency(row.cost)}</td>
-              <td>{formatPercent(row.paymentRate)}</td>
+              <td>
+                {ui.hasPaymentRate
+                  ? formatPercent(row.paymentRate)
+                  : formatNumber(row.totalPayUv)}
+              </td>
               {ui.hasAdRevenue ? (
                 <>
                   <td>{formatCurrency(row.adRevenue)}</td>

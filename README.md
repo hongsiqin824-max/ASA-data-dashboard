@@ -1,6 +1,6 @@
 # ASA 数据后台
 
-公司内部投放 ROI 数据看板，当前支持 iOS ASA 与鸿蒙投放数据。系统提供关键词、计划、任务、子任务和日期等维度的成本、收益、转化漏斗及 D1-D7、D15、D30、总 ROI 分析。
+公司内部投放 ROI 数据看板，当前支持 iOS ASA、鸿蒙和小红书投放数据。iOS 提供关键词/计划维度，鸿蒙提供任务/子任务维度，小红书按推广计划/日期维度展示成本、收益、转化及 D1-D7、D15、D30、总 ROI。
 
 ## 技术栈
 
@@ -42,6 +42,7 @@ ASA_DB_USER
 ASA_DB_PASSWORD
 ASA_DB_TABLE_IOS
 ASA_DB_TABLE_HARMONY
+ASA_DB_TABLE_XHS
 ASA_BASE_URL
 ASA_HOST
 API_PORT
@@ -52,9 +53,10 @@ API_PORT
 ```text
 iOS：hive.ads.ads_ad_ios_asa_roi_di
 鸿蒙：hive.ads.ads_ad_hm_roi_di
+小红书：hive.ads.ads_ad_xhs_roi_di
 ```
 
-项目只展示数仓查询返回的真实数据，不对缺失 ROI 窗口补值或沿用前一窗口数据。
+项目只展示数仓查询返回的真实数据，不对缺失 ROI 窗口补值或沿用前一窗口数据。小红书源表没有广告组、关键词或子任务字段，因此页面和导出不会构造这些下级维度。
 
 ## 缓存语义
 

@@ -1,10 +1,10 @@
 import "./env";
 import mysql from "mysql2/promise";
-import { resolvePlatformSource } from "./platform";
+import { resolvePlatformSource, XHS_WORLD_CUP_RANGE } from "./platform";
 import { compareRequiredColumns } from "./platform-schema";
 import type { DataPlatform } from "./types";
 
-const platforms: readonly DataPlatform[] = ["iOS", "HarmonyOS"];
+const platforms: readonly DataPlatform[] = ["iOS", "HarmonyOS", "Xiaohongshu"];
 
 const connection = await mysql.createConnection({
   host: process.env.ASA_DB_HOST ?? "172.21.0.148",
@@ -25,8 +25,12 @@ for (const platform of platforms) {
       String(row.Field ?? "")
     );
     const check = compareRequiredColumns(platform, columns);
+    const xhsPartitionFilter =
+      platform === "Xiaohongshu"
+        ? ` WHERE day BETWEEN '${XHS_WORLD_CUP_RANGE.startDate}' AND '${XHS_WORLD_CUP_RANGE.endDate}'`
+        : "";
     const [statRows] = await connection.query(
-      `SELECT MIN(day) AS min_day, MAX(day) AS max_day, COUNT(*) AS row_count FROM ${source.table}`
+      `SELECT MIN(day) AS min_day, MAX(day) AS max_day, COUNT(*) AS row_count FROM ${source.table}${xhsPartitionFilter}`
     );
     const stats = (statRows as Array<Record<string, unknown>>)[0] ?? {};
 

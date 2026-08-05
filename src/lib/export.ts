@@ -8,7 +8,36 @@ import type {
 import { platformExportPrefix } from "./platform";
 import { statusMeta } from "./status";
 
+export const XHS_CAMPAIGN_EXPORT_HEADERS = [
+  "广告主ID", "推广计划ID", "推广计划名", "展示", "点击", "点击率", "激活", "注册",
+  "成本", "付费UV", "会员收入", "充值收入", "付费收入", "总收益", "总ROI",
+  "D1 ROI", "D2 ROI", "D3 ROI", "D4 ROI", "D5 ROI", "D6 ROI", "D7 ROI",
+  "D15 ROI", "D30 ROI", "状态"
+];
+
+export const XHS_DAILY_EXPORT_HEADERS = [
+  "日期", "广告主ID", "推广计划ID", "推广计划名", "展示", "点击", "点击率", "激活",
+  "注册", "总成本", "单激活成本", "单注册成本", "付费UV", "1日付费UV", "会员收入",
+  "充值收入", "付费收入", "总收益", "总ROI", "1日ROI", "2日ROI", "3日ROI",
+  "4日ROI", "5日ROI", "6日ROI", "7日ROI", "15日ROI", "30日ROI"
+];
+
 export function exportCampaignRows(rows: CampaignRow[], platform: DataPlatform) {
+  if (platform === "Xiaohongshu") {
+    downloadCsv(
+      "xhs-campaign-roi-summary.csv",
+      XHS_CAMPAIGN_EXPORT_HEADERS,
+      rows.map((row) => [
+        row.advertiserId ?? "", row.campaignId, row.label, row.impressions, row.taps,
+        row.ttr, row.activations, row.registrations, row.cost, row.totalPayUv,
+        row.vipRevenue, row.rechargeRevenue, row.payRevenue, row.totalRevenue, row.roi,
+        row.d1Roi, row.d2Roi, row.d3Roi, row.d4Roi, row.d5Roi, row.d6Roi, row.d7Roi,
+        row.d15Roi, row.d30Roi, statusMeta[row.status].label
+      ])
+    );
+    return;
+  }
+
   if (platform === "HarmonyOS") {
     downloadCsv(
       "harmony-task-roi-summary.csv",
@@ -231,6 +260,22 @@ export function exportDailyRows(
   keyword: string,
   platform: DataPlatform
 ) {
+  if (platform === "Xiaohongshu") {
+    downloadCsv(
+      `xhs-${keyword}-daily-detail.csv`,
+      XHS_DAILY_EXPORT_HEADERS,
+      rows.map((row) => [
+        row.date, row.advertiserId ?? "", row.campaignId, row.campaignName,
+        row.impressions, row.taps, row.ttr, row.activations, row.registrations,
+        row.cost, row.activationCost, row.registrationCost, row.totalPayUv,
+        row.d1PayUv, row.vipRevenue, row.rechargeRevenue, row.payRevenue,
+        row.totalRevenue, row.roi, row.d1Roi, row.d2Roi, row.d3Roi, row.d4Roi,
+        row.d5Roi, row.d6Roi, row.d7Roi, row.d15Roi, row.d30Roi
+      ])
+    );
+    return;
+  }
+
   if (platform === "HarmonyOS") {
     downloadCsv(
       `harmony-${keyword}-daily-detail.csv`,
@@ -367,6 +412,26 @@ export function exportDailySummaryRows(
   rows: DailyCampaignRow[],
   platform: DataPlatform
 ) {
+  if (platform === "Xiaohongshu") {
+    downloadCsv(
+      "xhs-daily-roi-summary.csv",
+      [
+        "日期", "展示", "点击", "点击率", "激活", "注册", "总成本", "付费UV",
+        "会员收入", "充值收入", "付费收入", "总收益", "总ROI", "1日ROI",
+        "2日ROI", "3日ROI", "4日ROI", "5日ROI", "6日ROI", "7日ROI",
+        "15日ROI", "30日ROI"
+      ],
+      rows.map((row) => [
+        row.date, row.impressions, row.taps, row.ttr, row.activations,
+        row.registrations, row.cost, row.totalPayUv, row.vipRevenue,
+        row.rechargeRevenue, row.payRevenue, row.totalRevenue, row.roi,
+        row.d1Roi, row.d2Roi, row.d3Roi, row.d4Roi, row.d5Roi, row.d6Roi,
+        row.d7Roi, row.d15Roi, row.d30Roi
+      ])
+    );
+    return;
+  }
+
   if (platform === "HarmonyOS") {
     downloadCsv(
       "harmony-daily-roi-summary.csv",

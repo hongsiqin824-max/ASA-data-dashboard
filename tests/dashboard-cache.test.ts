@@ -18,6 +18,12 @@ test("同一筛选条件下不同平台不能共用服务端缓存键", () => {
     ...base,
     platform: "HarmonyOS"
   });
+  const xhs = buildDashboardServerCacheKey({
+    ...base,
+    platform: "Xiaohongshu"
+  });
 
   assert.notEqual(ios, harmony);
+  assert.notEqual(ios, xhs);
+  assert.notEqual(harmony, xhs);
 });

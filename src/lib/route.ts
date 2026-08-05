@@ -1,6 +1,6 @@
 import type { QueryParams } from "./api";
 import { stripBase, withBase } from "./base";
-import { clientPlatform } from "./platform";
+import { clientPlatform, XHS_WORLD_CUP_RANGE } from "./platform";
 
 // 计算北京时间(UTC+8)下、偏移 dayOffset 天的 YYYY-MM-DD。
 // 显式按 +8 计算，不依赖运行环境时区（服务器/浏览器在别的时区也对）。
@@ -104,13 +104,16 @@ export function readQueryFromUrl(): QueryParams {
   const params = new URLSearchParams(window.location.search);
   const grain = params.get("grain");
   const revenueMode = params.get("revenueMode");
+  const platform = params.has("platform")
+    ? clientPlatform(params.get("platform"))
+    : initialQuery.platform;
+  const defaultRange =
+    platform === "Xiaohongshu" ? XHS_WORLD_CUP_RANGE : initialQuery;
 
   return {
-    startDate: params.get("startDate") ?? initialQuery.startDate,
-    endDate: params.get("endDate") ?? initialQuery.endDate,
-    platform: params.has("platform")
-      ? clientPlatform(params.get("platform"))
-      : initialQuery.platform,
+    startDate: params.get("startDate") ?? defaultRange.startDate,
+    endDate: params.get("endDate") ?? defaultRange.endDate,
+    platform,
     channel: params.get("channel") ?? initialQuery.channel,
     channelGroup: params.get("channelGroup") ?? initialQuery.channelGroup,
     campaignId: params.get("campaignId") ?? initialQuery.campaignId,

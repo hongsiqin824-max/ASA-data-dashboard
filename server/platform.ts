@@ -2,9 +2,14 @@ import type { DataPlatform } from "./types";
 
 export type PlatformSource = {
   platform: DataPlatform;
-  label: "iOS" | "鸿蒙";
+  label: "iOS" | "鸿蒙" | "小红书";
   table: string;
 };
+
+export const XHS_WORLD_CUP_RANGE = {
+  startDate: "20260611",
+  endDate: "20260719"
+} as const;
 
 const sources: Record<DataPlatform, PlatformSource> = {
   iOS: {
@@ -20,12 +25,20 @@ const sources: Record<DataPlatform, PlatformSource> = {
     label: "鸿蒙",
     table:
       process.env.ASA_DB_TABLE_HARMONY ?? "hive.ads.ads_ad_hm_roi_di"
+  },
+  Xiaohongshu: {
+    platform: "Xiaohongshu",
+    label: "小红书",
+    table:
+      process.env.ASA_DB_TABLE_XHS ?? "hive.ads.ads_ad_xhs_roi_di"
   }
 };
 
 export function parseDataPlatform(value: unknown): DataPlatform | null {
   if (value === undefined || value === null || value === "") return "iOS";
-  if (value === "iOS" || value === "HarmonyOS") return value;
+  if (value === "iOS" || value === "HarmonyOS" || value === "Xiaohongshu") {
+    return value;
+  }
   return null;
 }
 

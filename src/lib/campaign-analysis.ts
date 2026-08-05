@@ -43,7 +43,11 @@ export type CampaignTableSummary = {
   totalRevenue: number;
   roi: number;
   d1Roi: number;
+  d2Roi: number;
   d3Roi: number;
+  d4Roi: number;
+  d5Roi: number;
+  d6Roi: number;
   d7Roi: number;
   d15Roi: number;
   d30Roi: number;
@@ -167,7 +171,11 @@ export function summarizeCampaignRows(rows: CampaignRow[]): CampaignTableSummary
     totalRevenue,
     roi: cost > 0 ? totalRevenue / cost : 0,
     d1Roi: weightedRoi((row) => row.d1Roi),
+    d2Roi: weightedRoi((row) => row.d2Roi),
     d3Roi: weightedRoi((row) => row.d3Roi),
+    d4Roi: weightedRoi((row) => row.d4Roi),
+    d5Roi: weightedRoi((row) => row.d5Roi),
+    d6Roi: weightedRoi((row) => row.d6Roi),
     d7Roi: weightedRoi((row) => row.d7Roi),
     d15Roi: weightedRoi((row) => row.d15Roi),
     d30Roi: weightedRoi((row) => row.d30Roi)

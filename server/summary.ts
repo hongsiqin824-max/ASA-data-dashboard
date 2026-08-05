@@ -13,6 +13,7 @@ export function computeSummary(list: KeywordRow[]) {
       acc.totalNewDownloads += row.totalNewDownloads;
       acc.totalRedownloads += row.totalRedownloads;
       acc.activations += row.activations;
+      acc.registrations += row.registrations;
       acc.cost += row.cost;
       acc.adRevenue += row.adRevenue;
       acc.vipRevenue += row.vipRevenue;
@@ -31,6 +32,7 @@ export function computeSummary(list: KeywordRow[]) {
       totalNewDownloads: 0,
       totalRedownloads: 0,
       activations: 0,
+      registrations: 0,
       cost: 0,
       adRevenue: 0,
       vipRevenue: 0,

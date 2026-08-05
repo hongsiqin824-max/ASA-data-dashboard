@@ -125,6 +125,63 @@ export const HARMONY_REQUIRED_SOURCE_COLUMNS = [
   "roi_30d"
 ] as const;
 
+export const XHS_REQUIRED_SOURCE_COLUMNS = [
+  "day",
+  "report_date",
+  "advertiser_id",
+  "campaign_id",
+  "campaign_name",
+  "impression",
+  "click",
+  "spend",
+  "new_user_cnt",
+  "new_register_cnt",
+  "cost_per_activation",
+  "cost_per_register",
+  "pay_uv",
+  "pay_uv_1d",
+  "revenue_total",
+  "revenue_vip_total",
+  "revenue_charge_total",
+  "revenue_1d",
+  "revenue_2d",
+  "revenue_3d",
+  "revenue_4d",
+  "revenue_5d",
+  "revenue_6d",
+  "revenue_7d",
+  "revenue_15d",
+  "revenue_30d",
+  "revenue_vip_1d",
+  "revenue_vip_2d",
+  "revenue_vip_3d",
+  "revenue_vip_4d",
+  "revenue_vip_5d",
+  "revenue_vip_6d",
+  "revenue_vip_7d",
+  "revenue_vip_15d",
+  "revenue_vip_30d",
+  "revenue_charge_1d",
+  "revenue_charge_2d",
+  "revenue_charge_3d",
+  "revenue_charge_4d",
+  "revenue_charge_5d",
+  "revenue_charge_6d",
+  "revenue_charge_7d",
+  "revenue_charge_15d",
+  "revenue_charge_30d",
+  "roi_total",
+  "roi_1d",
+  "roi_2d",
+  "roi_3d",
+  "roi_4d",
+  "roi_5d",
+  "roi_6d",
+  "roi_7d",
+  "roi_15d",
+  "roi_30d"
+] as const;
+
 export function compareRequiredColumns(
   platform: DataPlatform,
   columns: readonly string[]
@@ -133,7 +190,9 @@ export function compareRequiredColumns(
   const required =
     platform === "HarmonyOS"
       ? HARMONY_REQUIRED_SOURCE_COLUMNS
-      : REQUIRED_SOURCE_COLUMNS;
+      : platform === "Xiaohongshu"
+        ? XHS_REQUIRED_SOURCE_COLUMNS
+        : REQUIRED_SOURCE_COLUMNS;
   const missing = required.filter(
     (column) => !available.has(column)
   );

@@ -59,6 +59,7 @@ export function aggregateCampaigns(rows: KeywordRow[]): CampaignRow[] {
     return {
       campaignId,
       label: campaignLabel(list, campaignId),
+      advertiserId: list.find((row) => row.advertiserId)?.advertiserId,
       firstDate:
         list
           .map((row) => row.firstDate)

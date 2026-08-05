@@ -35,13 +35,18 @@ type SortKey =
   | "activations"
   | "registrations"
   | "cost"
+  | "totalPayUv"
   | "paymentRate"
   | "adRevenue"
   | "payRevenue"
   | "totalRevenue"
   | "roi"
   | "d1Roi"
+  | "d2Roi"
   | "d3Roi"
+  | "d4Roi"
+  | "d5Roi"
+  | "d6Roi"
   | "d7Roi"
   | "d15Roi"
   | "d30Roi"
@@ -183,7 +188,9 @@ export function CampaignTable({
         <thead>
           <tr>
             <SortableHeader label={ui.parentEntity} sortKey="label" sort={sort} onSort={toggleSort} />
-            <SortableHeader label={ui.hasIosInstallBreakdown ? "广告组" : ui.childEntity} sortKey="adGroupCount" sort={sort} onSort={toggleSort} />
+            {ui.hasChildEntity ? (
+              <SortableHeader label={ui.hasIosInstallBreakdown ? "广告组" : ui.childEntity} sortKey="adGroupCount" sort={sort} onSort={toggleSort} />
+            ) : null}
             {ui.hasIosInstallBreakdown ? (
               <SortableHeader label="关键词" sortKey="keywordCount" sort={sort} onSort={toggleSort} />
             ) : null}
@@ -199,13 +206,18 @@ export function CampaignTable({
                 <SortableHeader label="总新下载" sortKey="totalNewDownloads" sort={sort} onSort={toggleSort} />
                 <SortableHeader label="总重下载" sortKey="totalRedownloads" sort={sort} onSort={toggleSort} />
               </>
-            ) : (
+            ) : ui.hasInstallMetric ? (
               <SortableHeader label="下载" sortKey="installs" sort={sort} onSort={toggleSort} />
-            )}
+            ) : null}
             <SortableHeader label="激活" sortKey="activations" sort={sort} onSort={toggleSort} />
             <SortableHeader label="注册" sortKey="registrations" sort={sort} onSort={toggleSort} />
             <SortableHeader label="成本" sortKey="cost" sort={sort} onSort={toggleSort} />
-            <SortableHeader label="付费率" sortKey="paymentRate" sort={sort} onSort={toggleSort} />
+            <SortableHeader
+              label={ui.hasPaymentRate ? "付费率" : "付费UV"}
+              sortKey={ui.hasPaymentRate ? "paymentRate" : "totalPayUv"}
+              sort={sort}
+              onSort={toggleSort}
+            />
             {ui.hasAdRevenue ? (
               <>
                 <SortableHeader label="广告收入" sortKey="adRevenue" sort={sort} onSort={toggleSort} />
@@ -220,7 +232,17 @@ export function CampaignTable({
             <SortableHeader label="总收益" sortKey="totalRevenue" sort={sort} onSort={toggleSort} />
             <SortableHeader label="总 ROI" sortKey="roi" sort={sort} onSort={toggleSort} />
             <SortableHeader label="D1" sortKey="d1Roi" sort={sort} onSort={toggleSort} />
+            {ui.hasFullRoiWindows ? (
+              <SortableHeader label="D2" sortKey="d2Roi" sort={sort} onSort={toggleSort} />
+            ) : null}
             <SortableHeader label="D3" sortKey="d3Roi" sort={sort} onSort={toggleSort} />
+            {ui.hasFullRoiWindows ? (
+              <>
+                <SortableHeader label="D4" sortKey="d4Roi" sort={sort} onSort={toggleSort} />
+                <SortableHeader label="D5" sortKey="d5Roi" sort={sort} onSort={toggleSort} />
+                <SortableHeader label="D6" sortKey="d6Roi" sort={sort} onSort={toggleSort} />
+              </>
+            ) : null}
             <SortableHeader label="D7" sortKey="d7Roi" sort={sort} onSort={toggleSort} />
             <SortableHeader label="D15" sortKey="d15Roi" sort={sort} onSort={toggleSort} />
             <SortableHeader label="D30" sortKey="d30Roi" sort={sort} onSort={toggleSort} />
@@ -233,7 +255,7 @@ export function CampaignTable({
               <strong>当前列表汇总</strong>
               <span>{formatNumber(summary.campaignCount)} 个{ui.parentEntity}</span>
             </td>
-            <td>{formatNumber(summary.adGroupCount)}</td>
+            {ui.hasChildEntity ? <td>{formatNumber(summary.adGroupCount)}</td> : null}
             {ui.hasIosInstallBreakdown ? <td>{formatNumber(summary.keywordCount)}</td> : null}
             <td>{formatNumber(summary.impressions)}</td>
             <td>{formatNumber(summary.taps)}</td>
@@ -247,13 +269,17 @@ export function CampaignTable({
                 <td>{formatNumber(summary.totalNewDownloads)}</td>
                 <td>{formatNumber(summary.totalRedownloads)}</td>
               </>
-            ) : (
+            ) : ui.hasInstallMetric ? (
               <td>{formatNumber(summary.installs)}</td>
-            )}
+            ) : null}
             <td>{formatNumber(summary.activations)}</td>
             <td>{formatNumber(summary.registrations)}</td>
             <td>{formatCurrency(summary.cost)}</td>
-            <td>{formatPercent(summary.paymentRate)}</td>
+            <td>
+              {ui.hasPaymentRate
+                ? formatPercent(summary.paymentRate)
+                : formatNumber(summary.totalPayUv)}
+            </td>
             {ui.hasAdRevenue ? (
               <>
                 <td>{formatCurrency(summary.adRevenue)}</td>
@@ -272,9 +298,27 @@ export function CampaignTable({
             <td>
               {renderWindowRoi(summary.d1Roi, "d1Roi", summaryAvailableDays)}
             </td>
+            {ui.hasFullRoiWindows ? (
+              <td>
+                {renderWindowRoi(summary.d2Roi, "d2Roi", summaryAvailableDays)}
+              </td>
+            ) : null}
             <td>
               {renderWindowRoi(summary.d3Roi, "d3Roi", summaryAvailableDays)}
             </td>
+            {ui.hasFullRoiWindows ? (
+              <>
+                <td>
+                  {renderWindowRoi(summary.d4Roi, "d4Roi", summaryAvailableDays)}
+                </td>
+                <td>
+                  {renderWindowRoi(summary.d5Roi, "d5Roi", summaryAvailableDays)}
+                </td>
+                <td>
+                  {renderWindowRoi(summary.d6Roi, "d6Roi", summaryAvailableDays)}
+                </td>
+              </>
+            ) : null}
             <td>
               {renderWindowRoi(summary.d7Roi, "d7Roi", summaryAvailableDays)}
             </td>
@@ -309,21 +353,27 @@ export function CampaignTable({
                 >
                   {row.label}
                 </a>
-                <span>{row.campaignId}</span>
+                <span>
+                  {row.advertiserId
+                    ? `广告主ID ${row.advertiserId} · ${ui.parentEntity}ID ${row.campaignId}`
+                    : row.campaignId}
+                </span>
               </td>
-              <td>
-                {!ui.hasIosInstallBreakdown && onOpenKeywords ? (
-                  <button
-                    className="table-link-button"
-                    type="button"
-                    onClick={() => onOpenKeywords(row.campaignId, row.label)}
-                  >
-                    {formatNumber(row.keywordCount)}
-                  </button>
-                ) : (
-                  formatNumber(row.adGroupCount)
-                )}
-              </td>
+              {ui.hasChildEntity ? (
+                <td>
+                  {!ui.hasIosInstallBreakdown && onOpenKeywords ? (
+                    <button
+                      className="table-link-button"
+                      type="button"
+                      onClick={() => onOpenKeywords(row.campaignId, row.label)}
+                    >
+                      {formatNumber(row.keywordCount)}
+                    </button>
+                  ) : (
+                    formatNumber(row.adGroupCount)
+                  )}
+                </td>
+              ) : null}
               {ui.hasIosInstallBreakdown ? <td>
                 {onOpenKeywords ? (
                   <button
@@ -349,13 +399,17 @@ export function CampaignTable({
                   <td>{formatNumber(row.totalNewDownloads)}</td>
                   <td>{formatNumber(row.totalRedownloads)}</td>
                 </>
-              ) : (
+              ) : ui.hasInstallMetric ? (
                 <td>{formatNumber(row.installs)}</td>
-              )}
+              ) : null}
               <td>{formatNumber(row.activations)}</td>
               <td>{formatNumber(row.registrations)}</td>
               <td>{formatCurrency(row.cost)}</td>
-              <td>{formatPercent(row.paymentRate)}</td>
+              <td>
+                {ui.hasPaymentRate
+                  ? formatPercent(row.paymentRate)
+                  : formatNumber(row.totalPayUv)}
+              </td>
               {ui.hasAdRevenue ? (
                 <>
                   <td>{formatCurrency(row.adRevenue)}</td>
@@ -374,9 +428,27 @@ export function CampaignTable({
               <td>
                 {renderWindowRoi(row.d1Roi, "d1Roi", roiDaysAvailable(row.firstDate, latestDateMs))}
               </td>
+              {ui.hasFullRoiWindows ? (
+                <td>
+                  {renderWindowRoi(row.d2Roi, "d2Roi", roiDaysAvailable(row.firstDate, latestDateMs))}
+                </td>
+              ) : null}
               <td>
                 {renderWindowRoi(row.d3Roi, "d3Roi", roiDaysAvailable(row.firstDate, latestDateMs))}
               </td>
+              {ui.hasFullRoiWindows ? (
+                <>
+                  <td>
+                    {renderWindowRoi(row.d4Roi, "d4Roi", roiDaysAvailable(row.firstDate, latestDateMs))}
+                  </td>
+                  <td>
+                    {renderWindowRoi(row.d5Roi, "d5Roi", roiDaysAvailable(row.firstDate, latestDateMs))}
+                  </td>
+                  <td>
+                    {renderWindowRoi(row.d6Roi, "d6Roi", roiDaysAvailable(row.firstDate, latestDateMs))}
+                  </td>
+                </>
+              ) : null}
               <td>
                 {renderWindowRoi(row.d7Roi, "d7Roi", roiDaysAvailable(row.firstDate, latestDateMs))}
               </td>

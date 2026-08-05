@@ -20,19 +20,24 @@ export function buildSourceTableAuditSql(params: {
   revenueMode: RevenueMode;
 }) {
   const isHarmony = params.platform === "HarmonyOS";
-  const keywordColumn = isHarmony ? "task_name" : "keyword";
+  const isXhs = params.platform === "Xiaohongshu";
+  const keywordColumn = isHarmony ? "task_name" : isXhs ? "campaign_name" : "keyword";
   const campaignColumn = isHarmony ? "task_id" : "campaign_id";
-  const adGroupColumn = isHarmony ? "sub_task_id" : "ad_group_id";
+  const adGroupColumn = isHarmony ? "sub_task_id" : isXhs ? null : "ad_group_id";
   const filters = [
     `day BETWEEN ${quoteSql(params.startDate)} AND ${quoteSql(params.endDate)}`
   ];
   if (params.keyword) {
-    filters.push(`${keywordColumn} LIKE concat('%', ${quoteSql(params.keyword)}, '%')`);
+    filters.push(
+      isXhs
+        ? `(${keywordColumn} LIKE concat('%', ${quoteSql(params.keyword)}, '%') OR campaign_id LIKE concat('%', ${quoteSql(params.keyword)}, '%'))`
+        : `${keywordColumn} LIKE concat('%', ${quoteSql(params.keyword)}, '%')`
+    );
   }
   if (params.campaignId) {
     filters.push(`${campaignColumn} = ${quoteSql(params.campaignId)}`);
   }
-  if (params.adGroupId) {
+  if (params.adGroupId && adGroupColumn) {
     filters.push(`${adGroupColumn} = ${quoteSql(params.adGroupId)}`);
   }
 

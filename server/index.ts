@@ -14,7 +14,8 @@ import { computeSummary } from "./summary";
 import {
   parseDataPlatform,
   platformSourceNote,
-  resolvePlatformSource
+  resolvePlatformSource,
+  XHS_WORLD_CUP_RANGE
 } from "./platform";
 import type {
   DailyCampaignRow,
@@ -32,6 +33,7 @@ import {
 const app = express();
 const port = Number(process.env.API_PORT ?? 4173);
 const sourceMode = parseSourceMode(process.env.ASA_DATA_MODE);
+const SUPPORTED_PLATFORM_MESSAGE = "platform 仅支持 iOS、HarmonyOS 或 Xiaohongshu";
 const basePath = (() => {
   try {
     return new URL(process.env.ASA_BASE_URL ?? "http://127.0.0.1:4173").pathname.replace(
@@ -58,7 +60,7 @@ app.get("/api/me", (_req, res) => {
 app.get("/api/asa/data-model", (req, res) => {
   const platform = parseDataPlatform(req.query.platform);
   if (!platform) {
-    res.status(400).json({ error: "platform 仅支持 iOS 或 HarmonyOS" });
+    res.status(400).json({ error: SUPPORTED_PLATFORM_MESSAGE });
     return;
   }
   const source = resolvePlatformSource(platform);
@@ -68,11 +70,12 @@ app.get("/api/asa/data-model", (req, res) => {
 app.get("/api/asa/keyword-roi/sql", (req, res) => {
   const platform = parseDataPlatform(req.query.platform);
   if (!platform) {
-    res.status(400).json({ error: "platform 仅支持 iOS 或 HarmonyOS" });
+    res.status(400).json({ error: SUPPORTED_PLATFORM_MESSAGE });
     return;
   }
-  const startDate = compactDate(req.query.startDate, "20260525");
-  const endDate = compactDate(req.query.endDate, "20260624");
+  const defaults = defaultRangeForPlatform(platform);
+  const startDate = compactDate(req.query.startDate, defaults.startDate);
+  const endDate = compactDate(req.query.endDate, defaults.endDate);
   const revenueMode = parseRevenueMode(req.query.revenueMode);
   const source = resolvePlatformSource(platform);
   const model = dataModelForPlatform(platform, source.table);
@@ -107,7 +110,7 @@ app.get("/api/asa/keyword-roi/sql", (req, res) => {
 app.get("/api/asa/keyword-roi", async (req, res) => {
   const platform = parseDataPlatform(req.query.platform);
   if (!platform) {
-    res.status(400).json({ error: "platform 仅支持 iOS 或 HarmonyOS" });
+    res.status(400).json({ error: SUPPORTED_PLATFORM_MESSAGE });
     return;
   }
   const source = resolvePlatformSource(platform);
@@ -116,8 +119,9 @@ app.get("/api/asa/keyword-roi", async (req, res) => {
   const campaignId = String(req.query.campaignId ?? "");
   const adGroupId = String(req.query.adGroupId ?? "");
   const status = String(req.query.status ?? "");
-  const startDate = compactDate(req.query.startDate, "20260525");
-  const endDate = compactDate(req.query.endDate, "20260624");
+  const defaults = defaultRangeForPlatform(platform);
+  const startDate = compactDate(req.query.startDate, defaults.startDate);
+  const endDate = compactDate(req.query.endDate, defaults.endDate);
   const revenueMode = parseRevenueMode(req.query.revenueMode);
   const forceRefresh =
     req.query.forceRefresh === "true" || req.query.forceRefresh === "1";
@@ -157,8 +161,8 @@ app.get("/api/asa/keyword-roi", async (req, res) => {
         platform,
         updatedAt: new Date().toISOString(),
         dateRange: {
-          start: String(req.query.startDate ?? "2026-05-25"),
-          end: String(req.query.endDate ?? "2026-06-24")
+          start: String(req.query.startDate ?? dashedCompactDate(defaults.startDate)),
+          end: String(req.query.endDate ?? dashedCompactDate(defaults.endDate))
         },
         dataAsOfDate: null,
         source: {
@@ -237,8 +241,8 @@ app.get("/api/asa/keyword-roi", async (req, res) => {
         ? new Date().toISOString()
         : new Date().toISOString(),
     dateRange: {
-      start: String(req.query.startDate ?? "2026-05-25"),
-      end: String(req.query.endDate ?? "2026-06-24")
+      start: String(req.query.startDate ?? dashedCompactDate(defaults.startDate)),
+      end: String(req.query.endDate ?? dashedCompactDate(defaults.endDate))
     },
     dataAsOfDate,
     source: {
@@ -279,7 +283,7 @@ app.get("/api/asa/keyword-roi", async (req, res) => {
 app.get("/api/asa/keyword-roi/daily", async (req, res) => {
   const platform = parseDataPlatform(req.query.platform);
   if (!platform) {
-    res.status(400).json({ error: "platform 仅支持 iOS 或 HarmonyOS" });
+    res.status(400).json({ error: SUPPORTED_PLATFORM_MESSAGE });
     return;
   }
   const source = resolvePlatformSource(platform);
@@ -288,8 +292,9 @@ app.get("/api/asa/keyword-roi/daily", async (req, res) => {
     return;
   }
 
-  const startDate = compactDate(req.query.startDate, "20260525");
-  const endDate = compactDate(req.query.endDate, "20260624");
+  const defaults = defaultRangeForPlatform(platform);
+  const startDate = compactDate(req.query.startDate, defaults.startDate);
+  const endDate = compactDate(req.query.endDate, defaults.endDate);
   const revenueMode = parseRevenueMode(req.query.revenueMode);
 
   try {
@@ -325,11 +330,25 @@ function beijingCompactDate(dayOffset = 0) {
   return `${year}${month}${day}`;
 }
 
+function dashedCompactDate(compact: string) {
+  return `${compact.slice(0, 4)}-${compact.slice(4, 6)}-${compact.slice(6, 8)}`;
+}
+
+function defaultRangeForPlatform(platform: DataPlatform) {
+  return platform === "Xiaohongshu"
+    ? XHS_WORLD_CUP_RANGE
+    : { startDate: "20260525", endDate: "20260624" };
+}
+
 async function prewarmPlatformDashboardCache(platform: DataPlatform) {
   if (sourceMode !== "live") return;
 
-  const startDate = beijingCompactDate(-6);
-  const endDate = beijingCompactDate(0);
+  const startDate =
+    platform === "Xiaohongshu"
+      ? XHS_WORLD_CUP_RANGE.startDate
+      : beijingCompactDate(-6);
+  const endDate =
+    platform === "Xiaohongshu" ? XHS_WORLD_CUP_RANGE.endDate : beijingCompactDate(0);
   const revenueMode = parseRevenueMode("all");
   const source = resolvePlatformSource(platform);
   const model = dataModelForPlatform(platform, source.table);
@@ -439,7 +458,11 @@ app.listen(port, host, () => {
   );
   setTimeout(() => {
     void (async () => {
-      for (const platform of ["iOS", "HarmonyOS"] satisfies DataPlatform[]) {
+      for (const platform of [
+        "iOS",
+        "HarmonyOS",
+        "Xiaohongshu"
+      ] satisfies DataPlatform[]) {
         await prewarmPlatformDashboardCache(platform);
       }
     })();

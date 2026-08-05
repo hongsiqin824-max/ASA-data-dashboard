@@ -23,7 +23,11 @@ import type {
   DataPlatform,
   KeywordRow
 } from "./lib/types";
-import { platformLabel, platformUi } from "./lib/platform";
+import {
+  platformLabel,
+  platformUi,
+  XHS_WORLD_CUP_RANGE
+} from "./lib/platform";
 import { aggregateCampaignDaily, aggregateCampaigns } from "./lib/campaign";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
@@ -119,7 +123,9 @@ function App() {
   );
   const [error, setError] = useState("");
   const [now, setNow] = useState(() => Date.now());
-  const [homeView, setHomeView] = useState<HomeView>("keywords");
+  const [homeView, setHomeView] = useState<HomeView>(() =>
+    platformUi(readQueryFromUrl().platform).hasChildEntity ? "keywords" : "campaigns"
+  );
   const [keywordScope, setKeywordScope] = useState<KeywordListScope>({
     type: "all"
   });
@@ -162,8 +168,10 @@ function App() {
   }
 
   function changePlatform(platform: DataPlatform) {
+    setHomeView(platformUi(platform).hasChildEntity ? "keywords" : "campaigns");
     updateQuery({
       platform,
+      ...(platform === "Xiaohongshu" ? XHS_WORLD_CUP_RANGE : {}),
       campaignId: "",
       adGroupId: ""
     });
@@ -269,6 +277,9 @@ function App() {
       const nextQuery = readQueryFromUrl();
       setRoute(readRouteFromUrl());
       setQuery(nextQuery);
+      setHomeView(
+        platformUi(nextQuery.platform).hasChildEntity ? "keywords" : "campaigns"
+      );
       setKeywordScope({ type: "all" });
       setDashboard(prepareDashboardLoad(nextQuery, false));
       setError("");
@@ -534,8 +545,17 @@ function App() {
     onExport = () =>
       exportDailyRows(selectedDailyRows, selectedKeyword.keyword, query.platform);
   } else if (route.page === "campaign" && selectedCampaign) {
-    exportLabel = `导出 ${selectedCampaign.label} ${ui.childEntity}`;
-    onExport = () => exportKeywordRows(campaignKeywordRows, query.platform);
+    if (ui.hasChildEntity) {
+      exportLabel = `导出 ${selectedCampaign.label} ${ui.childEntity}`;
+      onExport = () => exportKeywordRows(campaignKeywordRows, query.platform);
+    } else {
+      exportLabel = dailyScopeLoading
+        ? "逐日明细加载中"
+        : `导出 ${selectedCampaign.label} 逐日明细`;
+      exportDisabled = dailyScopeLoading;
+      onExport = () =>
+        exportDailyRows(scopedDailyRows, selectedCampaign.label, query.platform);
+    }
   }
 
   const title =

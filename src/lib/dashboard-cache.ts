@@ -1,7 +1,7 @@
 import type { QueryParams } from "./api";
 import type { DashboardResponse } from "./types";
 
-const CACHE_VERSION = 10;
+const CACHE_VERSION = 11;
 const ITEM_PREFIX = `asa-roi-dashboard:v${CACHE_VERSION}:dashboard:`;
 const INDEX_KEY = `asa-roi-dashboard:v${CACHE_VERSION}:index`;
 const MAX_CACHE_ITEMS = 8;
@@ -67,7 +67,9 @@ function isDashboardResponse(value: unknown): value is DashboardResponse {
   if (!value || typeof value !== "object") return false;
   const data = value as Partial<DashboardResponse>;
   return (
-    (data.platform === "iOS" || data.platform === "HarmonyOS") &&
+    (data.platform === "iOS" ||
+      data.platform === "HarmonyOS" ||
+      data.platform === "Xiaohongshu") &&
     typeof data.updatedAt === "string" &&
     (typeof data.dataAsOfDate === "string" || data.dataAsOfDate === null) &&
     Array.isArray(data.rows) &&

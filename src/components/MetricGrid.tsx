@@ -80,17 +80,23 @@ export function MetricGrid({
         }
       />
       <Metric
-        label={`${ui.installMetric} / 激活`}
+        label={ui.hasInstallMetric ? `${ui.installMetric} / 激活` : "激活 / 注册"}
         value={
           data && hasKeywordRows
-            ? `${formatNumber(data.summary.installs)} / ${formatNumber(
-                data.summary.activations
-              )}`
+            ? ui.hasInstallMetric
+              ? `${formatNumber(data.summary.installs)} / ${formatNumber(
+                  data.summary.activations
+                )}`
+              : `${formatNumber(data.summary.activations)} / ${formatNumber(
+                  data.summary.registrations
+                )}`
             : "--"
         }
         trend={
           data && hasKeywordRows
-            ? `激活率 ${formatPercent(data.summary.activationRate)}`
+            ? ui.hasInstallMetric
+              ? `激活率 ${formatPercent(data.summary.activationRate)}`
+              : "新激活 / 新注册"
             : "暂无真实数据"
         }
         icon={<Activity size={19} />}

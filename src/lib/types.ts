@@ -1,5 +1,5 @@
 export type KeywordStatus = "scaling" | "observe" | "pause" | "new";
-export type DataPlatform = "iOS" | "HarmonyOS";
+export type DataPlatform = "iOS" | "HarmonyOS" | "Xiaohongshu";
 
 export type KeywordRow = {
   dateRange: string;
@@ -8,6 +8,7 @@ export type KeywordRow = {
   activeDays?: number;
   campaignId: string;
   campaignName: string;
+  advertiserId?: string;
   adGroupId: string;
   adGroupName: string;
   keywordId: string;
@@ -65,6 +66,7 @@ export type KeywordRow = {
 export type CampaignRow = {
   campaignId: string;
   label: string; // 展示名：真实计划名 → 广告组名 → campaignId 回退
+  advertiserId?: string;
   firstDate?: string | null;
   lastDate?: string | null;
   adGroupCount: number;
@@ -141,6 +143,7 @@ export type DailyKeywordRow = {
   date: string;
   campaignId: string;
   campaignName: string;
+  advertiserId?: string;
   adGroupId: string;
   adGroupName: string;
   keywordId: string;
@@ -240,6 +243,7 @@ export type DashboardResponse = {
     totalNewDownloads: number;
     totalRedownloads: number;
     activations: number;
+    registrations: number;
     cost: number;
     adRevenue: number;
     vipRevenue?: number;

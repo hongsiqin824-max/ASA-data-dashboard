@@ -7,7 +7,8 @@ import {
   keywordEntityOrder,
   platformExportPrefix,
   platformLabel,
-  platformUi
+  platformUi,
+  XHS_WORLD_CUP_RANGE
 } from "../src/lib/platform";
 
 test("前端平台展示、URL 回退和导出前缀稳定", () => {
@@ -16,6 +17,24 @@ test("前端平台展示、URL 回退和导出前缀稳定", () => {
   assert.equal(clientPlatform("bad-value"), "iOS");
   assert.equal(platformExportPrefix("iOS"), "ios");
   assert.equal(platformExportPrefix("HarmonyOS"), "harmony");
+  assert.equal(platformLabel("Xiaohongshu"), "小红书");
+  assert.equal(clientPlatform("Xiaohongshu"), "Xiaohongshu");
+  assert.equal(platformExportPrefix("Xiaohongshu"), "xhs");
+});
+
+test("小红书只展示计划级真实能力并使用世界杯默认区间", () => {
+  const ui = platformUi("Xiaohongshu");
+
+  assert.equal(ui.parentEntity, "推广计划");
+  assert.equal(ui.hasChildEntity, false);
+  assert.equal(ui.hasInstallMetric, false);
+  assert.equal(ui.hasPaymentRate, false);
+  assert.equal(ui.hasAdRevenue, false);
+  assert.equal(ui.hasFullRoiWindows, true);
+  assert.deepEqual(XHS_WORLD_CUP_RANGE, {
+    startDate: "2026-06-11",
+    endDate: "2026-07-19"
+  });
 });
 
 test("鸿蒙界面使用任务和子任务语义并隐藏缺失指标", () => {

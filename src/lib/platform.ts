@@ -1,17 +1,31 @@
 import type { DataPlatform } from "./types";
 
-export const DATA_PLATFORMS: readonly DataPlatform[] = ["iOS", "HarmonyOS"];
+export const DATA_PLATFORMS: readonly DataPlatform[] = [
+  "iOS",
+  "HarmonyOS",
+  "Xiaohongshu"
+];
 
-export function platformLabel(platform: DataPlatform): "iOS" | "鸿蒙" {
-  return platform === "HarmonyOS" ? "鸿蒙" : "iOS";
+export const XHS_WORLD_CUP_RANGE = {
+  startDate: "2026-06-11",
+  endDate: "2026-07-19"
+} as const;
+
+export function platformLabel(platform: DataPlatform): "iOS" | "鸿蒙" | "小红书" {
+  if (platform === "HarmonyOS") return "鸿蒙";
+  return platform === "Xiaohongshu" ? "小红书" : "iOS";
 }
 
 export function clientPlatform(value: string | null): DataPlatform {
-  return value === "HarmonyOS" ? "HarmonyOS" : "iOS";
+  if (value === "HarmonyOS" || value === "Xiaohongshu") return value;
+  return "iOS";
 }
 
-export function platformExportPrefix(platform: DataPlatform): "ios" | "harmony" {
-  return platform === "HarmonyOS" ? "harmony" : "ios";
+export function platformExportPrefix(
+  platform: DataPlatform
+): "ios" | "harmony" | "xhs" {
+  if (platform === "HarmonyOS") return "harmony";
+  return platform === "Xiaohongshu" ? "xhs" : "ios";
 }
 
 export function keywordEntityOrder(
@@ -19,7 +33,9 @@ export function keywordEntityOrder(
 ): readonly ["parent" | "child", "parent" | "child"] {
   return platform === "HarmonyOS"
     ? ["parent", "child"]
-    : ["child", "parent"];
+    : platform === "Xiaohongshu"
+      ? ["parent", "child"]
+      : ["child", "parent"];
 }
 
 export function platformUi(platform: DataPlatform) {
@@ -29,6 +45,25 @@ export function platformUi(platform: DataPlatform) {
       childEntity: "子任务",
       installMetric: "下载",
       spendSource: "华为广告支出",
+      hasChildEntity: true,
+      hasInstallMetric: true,
+      hasPaymentRate: true,
+      hasFullRoiWindows: false,
+      hasAdRevenue: false,
+      hasIosInstallBreakdown: false
+    } as const;
+  }
+
+  if (platform === "Xiaohongshu") {
+    return {
+      parentEntity: "推广计划",
+      childEntity: "计划明细",
+      installMetric: "安装",
+      spendSource: "小红书广告支出",
+      hasChildEntity: false,
+      hasInstallMetric: false,
+      hasPaymentRate: false,
+      hasFullRoiWindows: true,
       hasAdRevenue: false,
       hasIosInstallBreakdown: false
     } as const;
@@ -39,6 +74,10 @@ export function platformUi(platform: DataPlatform) {
     childEntity: "关键词",
     installMetric: "安装",
     spendSource: "Apple Ads 支出",
+    hasChildEntity: true,
+    hasInstallMetric: true,
+    hasPaymentRate: true,
+    hasFullRoiWindows: false,
     hasAdRevenue: true,
     hasIosInstallBreakdown: true
   } as const;

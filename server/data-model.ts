@@ -60,6 +60,25 @@ export const dataModel = {
 export function dataModelForPlatform(platform: DataPlatform, table: string) {
   if (platform === "iOS") return dataModel;
 
+  if (platform === "Xiaohongshu") {
+    return {
+      version: "xhs-roi-campaign-model-2026-07-19",
+      formula: "ROI =（会员收入 + 充值收入）/ 小红书广告花费",
+      grain: ["advertiser", "campaign", "day"],
+      currency: "RMB",
+      attributionWindow: "由小红书 ROI 成品表字段定义",
+      tables: [
+        {
+          role: "source",
+          name: table,
+          partition: "day",
+          grain: "advertiser x campaign x day"
+        }
+      ],
+      unresolvedItems: []
+    } as const;
+  }
+
   return {
     version: "hm-roi-task-model-2026-07-18",
     formula: "ROI = 归因收入 / 广告花费",

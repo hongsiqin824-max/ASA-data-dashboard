@@ -40,7 +40,9 @@ export function CampaignDetailPage({
   onOpenKeyword: (keywordId: string, campaignId: string, adGroupId: string) => void;
 }) {
   const ui = platformUi(query.platform);
-  const [view, setView] = useState<"keywords" | "daily">("keywords");
+  const [view, setView] = useState<"keywords" | "daily">(
+    ui.hasChildEntity ? "keywords" : "daily"
+  );
   const sortedKeywords = useMemo(
     () =>
       analyzeKeywordRows(keywordRows, []).sort(
@@ -67,7 +69,7 @@ export function CampaignDetailPage({
       ? dataDays
       : roiDaysAvailable(query.startDate, latestDateMs);
   }, [dailyRows, latestDateMs, query.startDate]);
-  const showingKeywords = view === "keywords";
+  const showingKeywords = ui.hasChildEntity && view === "keywords";
 
   return (
     <section className="detail-page">
@@ -82,10 +84,19 @@ export function CampaignDetailPage({
           <h2>{campaign.label}</h2>
           <span>
             {[
+              ...(campaign.advertiserId
+                ? [`广告主ID ${campaign.advertiserId}`]
+                : []),
               `${ui.parentEntity}ID ${campaign.campaignId}`,
-              `${formatNumber(campaign.adGroupCount)} 个${ui.hasIosInstallBreakdown ? "广告组" : ui.childEntity}`,
-              ...(ui.hasIosInstallBreakdown
-                ? [`${formatNumber(campaign.keywordCount)} 个关键词`]
+              ...(ui.hasChildEntity
+                ? [
+                    `${formatNumber(campaign.adGroupCount)} 个${
+                      ui.hasIosInstallBreakdown ? "广告组" : ui.childEntity
+                    }`,
+                    ...(ui.hasIosInstallBreakdown
+                      ? [`${formatNumber(campaign.keywordCount)} 个关键词`]
+                      : [])
+                  ]
                 : [])
             ].join(" · ")}
           </span>
@@ -100,7 +111,13 @@ export function CampaignDetailPage({
           <Metric
             label="投放成本"
             value={formatCurrency(campaign.cost)}
-            trend={`${ui.installMetric} ${formatNumber(campaign.installs)}`}
+            trend={
+              ui.hasInstallMetric
+                ? `${ui.installMetric} ${formatNumber(campaign.installs)}`
+                : `激活 ${formatNumber(campaign.activations)} · 注册 ${formatNumber(
+                    campaign.registrations
+                  )}`
+            }
             icon={<BarChart3 size={19} />}
           />
           <Metric
@@ -153,16 +170,18 @@ export function CampaignDetailPage({
                     : `共 ${formatNumber(dailyRows.length)} 天，用于判断该${ui.parentEntity}每天的投放强弱与 ROI 波动`}
             </p>
           </div>
-          <div className="table-header-tools">
-            <Segmented
-              value={view}
-              onChange={(value) => setView(value === "daily" ? "daily" : "keywords")}
-              options={[
-                { value: "keywords", label: ui.childEntity },
-                { value: "daily", label: "逐日趋势" }
-              ]}
-            />
-          </div>
+          {ui.hasChildEntity ? (
+            <div className="table-header-tools">
+              <Segmented
+                value={view}
+                onChange={(value) => setView(value === "daily" ? "daily" : "keywords")}
+                options={[
+                  { value: "keywords", label: ui.childEntity },
+                  { value: "daily", label: "逐日趋势" }
+                ]}
+              />
+            </div>
+          ) : null}
         </div>
         {showingKeywords ? (
           <KeywordTable
