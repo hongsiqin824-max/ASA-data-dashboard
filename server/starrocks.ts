@@ -9,8 +9,7 @@ import {
   buildPlatformSourceRelation,
   platformKeywordSearchColumn
 } from "./platform-query-source";
-import { XHS_WORLD_CUP_RANGE } from "./platform";
-import { round, type RevenueMode } from "./shared";
+import { beijingCompactDate, round, type RevenueMode } from "./shared";
 
 // StarRocks（MySQL 协议）连接池。账号/连接信息从环境变量读取（见 .env.local）。
 let pool: mysql.Pool | null = null;
@@ -117,10 +116,16 @@ function statusHavingClause(params: LiveQueryParams) {
     THEN SUM(revenue_vip_total) + SUM(revenue_charge_total)
     ELSE GREATEST(SUM(revenue_total) - SUM(ad_revenue_total), 0)
   END`;
+  // iOS 才有真实 ad_revenue_total；鸿蒙/小红书虚拟视图中恒为 0，
+  // "ad" 模式对这两个平台无意义，回退到付费收入表达式。
+  const effectiveMode =
+    params.platform !== "iOS" && params.revenueMode === "ad"
+      ? "pay"
+      : params.revenueMode;
   const revenueExpr =
-    params.revenueMode === "pay"
+    effectiveMode === "pay"
       ? payExpr
-      : params.revenueMode === "ad"
+      : effectiveMode === "ad"
         ? "SUM(ad_revenue_total)"
         : `(${payExpr} + SUM(ad_revenue_total))`;
   const roiExpr = `CASE WHEN SUM(spend) > 0 THEN ${revenueExpr} / SUM(spend) ELSE 0 END`;
@@ -332,9 +337,17 @@ async function fetchKeywordHistory(params: LiveQueryParams) {
   const table = buildPlatformSourceRelation(params.platform);
   const clauses: string[] = [];
   const values: string[] = [];
-  if (params.platform === "Xiaohongshu") {
-    clauses.push("day BETWEEN ? AND ?");
-    values.push(XHS_WORLD_CUP_RANGE.startDate, XHS_WORLD_CUP_RANGE.endDate);
+  // 故意不加日期过滤：目的是查全历史的 firstDate/lastDate，
+  // 而非当前查询窗口内的最早/最晚活跃日（与 iOS 语义保持一致）。
+  // campaign_id 是防止全表扫描的必要条件，未提供时直接返回空 Map。
+  if (!params.campaignId) {
+    return new Map<string, Pick<KeywordRow, "firstDate" | "lastDate">>();
+  }
+  clauses.push("campaign_id = ?");
+  values.push(params.campaignId);
+  if (params.adGroupId) {
+    clauses.push("ad_group_id = ?");
+    values.push(params.adGroupId);
   }
   if (params.keyword) {
     if (params.platform === "Xiaohongshu") {
@@ -345,16 +358,8 @@ async function fetchKeywordHistory(params: LiveQueryParams) {
       values.push(`%${params.keyword}%`);
     }
   }
-  if (params.campaignId) {
-    clauses.push("campaign_id = ?");
-    values.push(params.campaignId);
-  }
-  if (params.adGroupId) {
-    clauses.push("ad_group_id = ?");
-    values.push(params.adGroupId);
-  }
 
-  const where = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
+  const where = `WHERE ${clauses.join(" AND ")}`;
   const sql = `SELECT
       campaign_id,
       ad_group_id,
@@ -735,15 +740,20 @@ async function fetchAdGroups(params: LiveQueryParams) {
 
 async function fetchDataAsOfDate(params: LiveQueryParams) {
   const table = buildPlatformSourceRelation(params.platform);
-  const where =
-    params.platform === "Xiaohongshu" ? " WHERE day BETWEEN ? AND ?" : "";
-  const values =
-    params.platform === "Xiaohongshu"
-      ? [XHS_WORLD_CUP_RANGE.startDate, XHS_WORLD_CUP_RANGE.endDate]
-      : [];
+  // 小红书：用 day <= 北京今日 做分区裁剪，避免全表扫描，
+  // 同时不受当前用户查询区间限制，确保返回真实最新分区日期。
+  if (params.platform === "Xiaohongshu") {
+    const today = beijingCompactDate(0);
+    const [result] = await getPool().query(
+      `SELECT MAX(day) AS data_as_of_date FROM ${table} source_max WHERE day <= ?`,
+      [today]
+    );
+    const row = (result as unknown as Record<string, unknown>[])[0];
+    return dbDay(row?.data_as_of_date);
+  }
+  // iOS/鸿蒙：全表 MAX(day)，无需分区过滤
   const [result] = await getPool().query(
-    `SELECT MAX(day) AS data_as_of_date FROM ${table} source_max${where}`,
-    values
+    `SELECT MAX(day) AS data_as_of_date FROM ${table} source_max`
   );
   const row = (result as unknown as Record<string, unknown>[])[0];
   return dbDay(row?.data_as_of_date);
@@ -759,6 +769,7 @@ export async function fetchLiveData(params: LiveQueryParams) {
   ]);
   const rows = summaryRows.map((row) => ({
     ...row,
+    // 所有平台统一用全历史查询结果覆盖 firstDate/lastDate
     ...history.get(keywordHistoryKey(row))
   }));
   return {

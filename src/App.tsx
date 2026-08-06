@@ -23,11 +23,7 @@ import type {
   DataPlatform,
   KeywordRow
 } from "./lib/types";
-import {
-  platformLabel,
-  platformUi,
-  XHS_WORLD_CUP_RANGE
-} from "./lib/platform";
+import { platformLabel, platformUi } from "./lib/platform";
 import { aggregateCampaignDaily, aggregateCampaigns } from "./lib/campaign";
 import { Sidebar } from "./components/Sidebar";
 import { Topbar } from "./components/Topbar";
@@ -171,7 +167,6 @@ function App() {
     setHomeView(platformUi(platform).hasChildEntity ? "keywords" : "campaigns");
     updateQuery({
       platform,
-      ...(platform === "Xiaohongshu" ? XHS_WORLD_CUP_RANGE : {}),
       campaignId: "",
       adGroupId: ""
     });

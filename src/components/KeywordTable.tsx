@@ -336,7 +336,9 @@ export function KeywordTable({
           <tbody>
             <tr className="keyword-summary-row">
               <td>当前列表汇总</td>
-              <td>{formatNumber(summary.keywordCount)} 个{ui.childEntity}</td>
+              {ui.hasChildEntity ? (
+                <td>{formatNumber(summary.keywordCount)} 个{ui.childEntity}</td>
+              ) : null}
               {ui.hasIosInstallBreakdown ? <td>-</td> : null}
               <td>-</td>
               <td>-</td>

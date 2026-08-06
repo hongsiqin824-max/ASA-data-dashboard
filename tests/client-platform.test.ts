@@ -7,8 +7,7 @@ import {
   keywordEntityOrder,
   platformExportPrefix,
   platformLabel,
-  platformUi,
-  XHS_WORLD_CUP_RANGE
+  platformUi
 } from "../src/lib/platform";
 
 test("前端平台展示、URL 回退和导出前缀稳定", () => {
@@ -22,7 +21,7 @@ test("前端平台展示、URL 回退和导出前缀稳定", () => {
   assert.equal(platformExportPrefix("Xiaohongshu"), "xhs");
 });
 
-test("小红书只展示计划级真实能力并使用世界杯默认区间", () => {
+test("小红书只展示计划级真实能力", () => {
   const ui = platformUi("Xiaohongshu");
 
   assert.equal(ui.parentEntity, "推广计划");
@@ -31,10 +30,6 @@ test("小红书只展示计划级真实能力并使用世界杯默认区间", ()
   assert.equal(ui.hasPaymentRate, false);
   assert.equal(ui.hasAdRevenue, false);
   assert.equal(ui.hasFullRoiWindows, true);
-  assert.deepEqual(XHS_WORLD_CUP_RANGE, {
-    startDate: "2026-06-11",
-    endDate: "2026-07-19"
-  });
 });
 
 test("鸿蒙界面使用任务和子任务语义并隐藏缺失指标", () => {
@@ -69,5 +64,40 @@ test("平台切换按钮等宽铺满整个点击框", () => {
   assert.match(
     styles,
     /\.segmented\.platform-switch button\s*\{[^}]*flex:\s*1 1 0;[^}]*min-width:\s*0;/s
+  );
+});
+
+test("三个平台共用日期预设，平台切换保持当前日期", () => {
+  const filterBar = readFileSync(
+    new URL("../src/components/FilterBar.tsx", import.meta.url),
+    "utf8"
+  );
+  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
+  const route = readFileSync(new URL("../src/lib/route.ts", import.meta.url), "utf8");
+  const serverIndex = readFileSync(
+    new URL("../server/index.ts", import.meta.url),
+    "utf8"
+  );
+  const starrocks = readFileSync(
+    new URL("../server/starrocks.ts", import.meta.url),
+    "utf8"
+  );
+
+  assert.doesNotMatch(filterBar, /id:\s*["']world-cup["']/);
+  assert.doesNotMatch(filterBar, /XHS_WORLD_CUP_RANGE/);
+  assert.match(
+    filterBar,
+    /const next = \{\s*\.\.\.initialQuery,\s*platform: query\.platform/s
+  );
+  assert.doesNotMatch(app, /platformDateRanges|XHS_WORLD_CUP_RANGE/);
+  assert.match(app, /updateQuery\(\{\s*platform,\s*campaignId:/s);
+  assert.doesNotMatch(route, /XHS_WORLD_CUP_RANGE|platform === ["']Xiaohongshu["']/);
+  assert.doesNotMatch(serverIndex, /XHS_WORLD_CUP_RANGE/);
+  assert.match(serverIndex, /const startDate = beijingCompactDate\(-6\)/);
+  assert.match(serverIndex, /const endDate = beijingCompactDate\(0\)/);
+  assert.doesNotMatch(starrocks, /XHS_WORLD_CUP_RANGE/);
+  assert.match(
+    starrocks,
+    /const values:\s*Array<string>\s*=\s*\[params\.startDate,\s*params\.endDate\]/
   );
 });

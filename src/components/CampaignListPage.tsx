@@ -15,7 +15,7 @@ import {
   summarizeKeywordRows,
   type KeywordSort
 } from "../lib/keyword-analysis";
-import { latestRoiDateMs, roiDaysAvailable } from "../lib/roi-maturity";
+import { latestRoiDateMs, minimumRoiDaysAvailable } from "../lib/roi-maturity";
 import { platformUi } from "../lib/platform";
 import type {
   CampaignRow,
@@ -158,11 +158,11 @@ export function CampaignListPage({
     [data?.dataAsOfDate, dailyRows, keywordRows]
   );
   const summaryAvailableDays = useMemo(() => {
-    const dataDays = new Set(dailyRows.map((row) => row.date)).size;
-    return dataDays > 0
-      ? dataDays
-      : roiDaysAvailable(query.startDate, latestDateMs);
-  }, [dailyRows, latestDateMs, query.startDate]);
+    return minimumRoiDaysAvailable(
+      dailyRows.map((row) => row.date),
+      latestDateMs
+    );
+  }, [dailyRows, latestDateMs]);
   const hasCampaigns = campaignRows.length > 0;
   const hasKeywords = keywordRows.length > 0;
   const hasDailyRows = dailyRows.length > 0;

@@ -14,8 +14,7 @@ import { computeSummary } from "./summary";
 import {
   parseDataPlatform,
   platformSourceNote,
-  resolvePlatformSource,
-  XHS_WORLD_CUP_RANGE
+  resolvePlatformSource
 } from "./platform";
 import type {
   DailyCampaignRow,
@@ -336,19 +335,15 @@ function dashedCompactDate(compact: string) {
 
 function defaultRangeForPlatform(platform: DataPlatform) {
   return platform === "Xiaohongshu"
-    ? XHS_WORLD_CUP_RANGE
+    ? { startDate: beijingCompactDate(-6), endDate: beijingCompactDate(0) }
     : { startDate: "20260525", endDate: "20260624" };
 }
 
 async function prewarmPlatformDashboardCache(platform: DataPlatform) {
   if (sourceMode !== "live") return;
 
-  const startDate =
-    platform === "Xiaohongshu"
-      ? XHS_WORLD_CUP_RANGE.startDate
-      : beijingCompactDate(-6);
-  const endDate =
-    platform === "Xiaohongshu" ? XHS_WORLD_CUP_RANGE.endDate : beijingCompactDate(0);
+  const startDate = beijingCompactDate(-6);
+  const endDate = beijingCompactDate(0);
   const revenueMode = parseRevenueMode("all");
   const source = resolvePlatformSource(platform);
   const model = dataModelForPlatform(platform, source.table);

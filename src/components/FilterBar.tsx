@@ -1,12 +1,7 @@
 import { useMemo, useState } from "react";
 import { CalendarDays, ChevronDown, Filter, RotateCcw, Search } from "lucide-react";
 import type { QueryParams } from "../lib/api";
-import {
-  DATA_PLATFORMS,
-  platformLabel,
-  platformUi,
-  XHS_WORLD_CUP_RANGE
-} from "../lib/platform";
+import { DATA_PLATFORMS, platformLabel, platformUi } from "../lib/platform";
 import { initialQuery } from "../lib/route";
 import type { DashboardResponse, DataPlatform } from "../lib/types";
 import { Field } from "./ui/Field";
@@ -48,24 +43,14 @@ function monthRange(offset: number) {
   };
 }
 
-function buildPresetRanges(platform: DataPlatform): PresetRange[] {
-  const common = [
+function buildPresetRanges(): PresetRange[] {
+  return [
     { id: "7d", label: "近7天", startDate: beijingDate(-6), endDate: beijingDate(0) },
     { id: "14d", label: "近14天", startDate: beijingDate(-13), endDate: beijingDate(0) },
     { id: "30d", label: "近30天", startDate: beijingDate(-30), endDate: beijingDate(0) },
     { id: "this-month", label: "本月", ...monthRange(0) },
     { id: "last-month", label: "上月", ...monthRange(-1) }
   ];
-  return platform === "Xiaohongshu"
-    ? [
-        {
-          id: "world-cup",
-          label: "世界杯",
-          ...XHS_WORLD_CUP_RANGE
-        },
-        ...common
-      ]
-    : common;
 }
 
 function sameQuery(a: QueryParams, b: QueryParams) {
@@ -115,7 +100,7 @@ export function FilterBar({
   onPlatformChange: (platform: DataPlatform) => void;
 }) {
   const ui = platformUi(query.platform);
-  const presets = useMemo(() => buildPresetRanges(query.platform), [query.platform]);
+  const presets = useMemo(() => buildPresetRanges(), []);
   const [draftState, setDraftState] = useState(() => ({
     query,
     draft: query,
@@ -185,7 +170,6 @@ export function FilterBar({
   function reset() {
     const next = {
       ...initialQuery,
-      ...(query.platform === "Xiaohongshu" ? XHS_WORLD_CUP_RANGE : {}),
       platform: query.platform
     };
     setDraftState((current) => ({
