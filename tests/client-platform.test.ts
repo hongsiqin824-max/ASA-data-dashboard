@@ -9,6 +9,28 @@ import {
   platformLabel,
   platformUi
 } from "../src/lib/platform";
+import { filterRowsByPlanSelection } from "../src/lib/plan-filter";
+
+test("计划多选只过滤 iOS 关键词，其他平台保持原数据", () => {
+  const rows = [
+    { campaignId: "ios-a", value: 1 },
+    { campaignId: "ios-b", value: 2 }
+  ];
+
+  assert.deepEqual(
+    filterRowsByPlanSelection(rows, "iOS", ["ios-b"]),
+    [{ campaignId: "ios-b", value: 2 }]
+  );
+  assert.deepEqual(
+    filterRowsByPlanSelection(rows, "HarmonyOS", ["ios-b"]),
+    rows
+  );
+  assert.deepEqual(
+    filterRowsByPlanSelection(rows, "Xiaohongshu", []),
+    rows
+  );
+  assert.deepEqual(filterRowsByPlanSelection(rows, "iOS", null), rows);
+});
 
 test("前端平台展示、URL 回退和导出前缀稳定", () => {
   assert.equal(platformLabel("HarmonyOS"), "鸿蒙");

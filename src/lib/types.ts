@@ -1,7 +1,42 @@
 export type KeywordStatus = "scaling" | "observe" | "pause" | "new";
 export type DataPlatform = "iOS" | "HarmonyOS" | "Xiaohongshu";
 
-export type KeywordRow = {
+// 成品表中的 1~30 日留存设备数。null 表示该窗口暂无数据或不适用于当前平台，
+// 与真实留存数为 0 明确区分。
+export type RetainUvFields = {
+  retainUv1d: number | null;
+  retainUv2d: number | null;
+  retainUv3d: number | null;
+  retainUv4d: number | null;
+  retainUv5d: number | null;
+  retainUv6d: number | null;
+  retainUv7d: number | null;
+  retainUv8d: number | null;
+  retainUv9d: number | null;
+  retainUv10d: number | null;
+  retainUv11d: number | null;
+  retainUv12d: number | null;
+  retainUv13d: number | null;
+  retainUv14d: number | null;
+  retainUv15d: number | null;
+  retainUv16d: number | null;
+  retainUv17d: number | null;
+  retainUv18d: number | null;
+  retainUv19d: number | null;
+  retainUv20d: number | null;
+  retainUv21d: number | null;
+  retainUv22d: number | null;
+  retainUv23d: number | null;
+  retainUv24d: number | null;
+  retainUv25d: number | null;
+  retainUv26d: number | null;
+  retainUv27d: number | null;
+  retainUv28d: number | null;
+  retainUv29d: number | null;
+  retainUv30d: number | null;
+};
+
+export type KeywordRow = RetainUvFields & {
   dateRange: string;
   firstDate?: string | null;
   lastDate?: string | null;
@@ -138,7 +173,7 @@ export type DailyCampaignRow = {
   d30Roi: number;
 };
 
-export type DailyKeywordRow = {
+export type DailyKeywordRow = RetainUvFields & {
   platform: DataPlatform;
   date: string;
   campaignId: string;

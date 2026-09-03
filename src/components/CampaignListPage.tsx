@@ -17,6 +17,7 @@ import {
 } from "../lib/keyword-analysis";
 import { latestRoiDateMs, minimumRoiDaysAvailable } from "../lib/roi-maturity";
 import { platformUi } from "../lib/platform";
+import { filterRowsByPlanSelection } from "../lib/plan-filter";
 import type {
   CampaignRow,
   DailyCampaignRow,
@@ -28,6 +29,7 @@ import { DailyCampaignTable } from "./DailyCampaignTable";
 import type { DailyCampaignTableSummary } from "./DailyCampaignTable";
 import { KeywordTable } from "./KeywordTable";
 import { Segmented } from "./ui/Segmented";
+import { PlanMultiSelect, type PlanOption, type PlanSelection } from "./ui/PlanMultiSelect";
 
 export type HomeView = "keywords" | "campaigns" | "daily";
 export type KeywordListScope =
@@ -115,7 +117,11 @@ export function CampaignListPage({
   onViewChange,
   onOpenCampaignKeywords,
   onOpenDateKeywords,
-  onClearKeywordScope
+  onClearKeywordScope,
+  planOptions,
+  planSelection,
+  planLoading,
+  onPlanSelectionChange
 }: {
   data: DashboardResponse | null;
   campaignRows: CampaignRow[];
@@ -132,6 +138,10 @@ export function CampaignListPage({
   onOpenCampaignKeywords: (campaignId: string, label: string) => void;
   onOpenDateKeywords: (date: string) => void;
   onClearKeywordScope: () => void;
+  planOptions: PlanOption[];
+  planSelection: PlanSelection;
+  planLoading: boolean;
+  onPlanSelectionChange: (next: PlanSelection) => void;
 }) {
   const ui = platformUi(query.platform);
   const keywordRows = useMemo(() => {
@@ -212,7 +222,7 @@ export function CampaignListPage({
     [keywordRows]
   );
   const visibleKeywords = useMemo(() => {
-    return [...analyzedKeywordRows]
+    return [...filterRowsByPlanSelection(analyzedKeywordRows, query.platform, planSelection)]
       .filter((row) => matchesRoiFilter(row.roi, roiFilter))
       .filter((row) => {
         if (!keywordQ) return true;
@@ -224,7 +234,7 @@ export function CampaignListPage({
         );
       })
       .sort((a, b) => compareKeywordRows(a, b, keywordSort));
-  }, [analyzedKeywordRows, keywordQ, keywordSort, roiFilter]);
+  }, [analyzedKeywordRows, keywordQ, keywordSort, planSelection, query.platform, roiFilter]);
   const keywordSummary = useMemo(
     () => summarizeKeywordRows(visibleKeywords),
     [visibleKeywords]
@@ -255,6 +265,8 @@ export function CampaignListPage({
     ? scopedDateKeywordLoading
       ? `正在读取 ${keywordScope.type === "date" ? keywordScope.label : ""} 的${ui.childEntity}`
       : scopedDateKeywordError || `当前暂无${ui.childEntity}数据`
+      : planSelection !== null
+      ? `当前计划筛选命中 ${formatNumber(visibleKeywords.length)} / ${formatNumber(keywordRows.length)} 个${ui.childEntity}`
       : keywordQ
       ? `搜索“${keywordSearch.trim()}”命中 ${formatNumber(visibleKeywords.length)} / ${formatNumber(keywordRows.length)} 个${ui.childEntity}`
       : keywordScope.type !== "all"
@@ -312,6 +324,14 @@ export function CampaignListPage({
                     ]
               }
             />
+            {showingKeywords && query.platform === "iOS" ? (
+              <PlanMultiSelect
+                options={planOptions}
+                selectedIds={planSelection}
+                loading={planLoading}
+                onChange={onPlanSelectionChange}
+              />
+            ) : null}
             {showingKeywords && hasKeywords ? (
               <div className="field-control compact-select">
                 <select

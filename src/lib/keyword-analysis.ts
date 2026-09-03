@@ -26,6 +26,37 @@ export type KeywordTableSummary = {
   registrations: number;
   activationCost: number | null;
   registrationCost: number | null;
+  // 关键词粒度的留存设备数直接求和；这不是跨关键词去重后的设备数。
+  retainUv1d: number | null;
+  retainUv2d: number | null;
+  retainUv3d: number | null;
+  retainUv4d: number | null;
+  retainUv5d: number | null;
+  retainUv6d: number | null;
+  retainUv7d: number | null;
+  retainUv8d: number | null;
+  retainUv9d: number | null;
+  retainUv10d: number | null;
+  retainUv11d: number | null;
+  retainUv12d: number | null;
+  retainUv13d: number | null;
+  retainUv14d: number | null;
+  retainUv15d: number | null;
+  retainUv16d: number | null;
+  retainUv17d: number | null;
+  retainUv18d: number | null;
+  retainUv19d: number | null;
+  retainUv20d: number | null;
+  retainUv21d: number | null;
+  retainUv22d: number | null;
+  retainUv23d: number | null;
+  retainUv24d: number | null;
+  retainUv25d: number | null;
+  retainUv26d: number | null;
+  retainUv27d: number | null;
+  retainUv28d: number | null;
+  retainUv29d: number | null;
+  retainUv30d: number | null;
   adRevenue: number;
   vipRevenue: number;
   rechargeRevenue: number;
@@ -157,6 +188,17 @@ export function compareKeywordRows(
 export function summarizeKeywordRows(rows: KeywordAnalysisRow[]): KeywordTableSummary {
   const sum = (pick: (row: KeywordAnalysisRow) => number) =>
     rows.reduce((total, row) => total + pick(row), 0);
+  const sumNullable = (pick: (row: KeywordAnalysisRow) => number | null | undefined) => {
+    let total = 0;
+    let hasValue = false;
+    rows.forEach((row) => {
+      const value = pick(row);
+      if (value === null || value === undefined) return;
+      total += value;
+      hasValue = true;
+    });
+    return hasValue ? total : null;
+  };
   const cost = sum((row) => row.cost);
   const impressions = sum((row) => row.impressions);
   const taps = sum((row) => row.taps);
@@ -187,6 +229,36 @@ export function summarizeKeywordRows(rows: KeywordAnalysisRow[]): KeywordTableSu
     registrations,
     activationCost: activations > 0 ? cost / activations : null,
     registrationCost: registrations > 0 ? cost / registrations : null,
+    retainUv1d: sumNullable((row) => row.retainUv1d),
+    retainUv2d: sumNullable((row) => row.retainUv2d),
+    retainUv3d: sumNullable((row) => row.retainUv3d),
+    retainUv4d: sumNullable((row) => row.retainUv4d),
+    retainUv5d: sumNullable((row) => row.retainUv5d),
+    retainUv6d: sumNullable((row) => row.retainUv6d),
+    retainUv7d: sumNullable((row) => row.retainUv7d),
+    retainUv8d: sumNullable((row) => row.retainUv8d),
+    retainUv9d: sumNullable((row) => row.retainUv9d),
+    retainUv10d: sumNullable((row) => row.retainUv10d),
+    retainUv11d: sumNullable((row) => row.retainUv11d),
+    retainUv12d: sumNullable((row) => row.retainUv12d),
+    retainUv13d: sumNullable((row) => row.retainUv13d),
+    retainUv14d: sumNullable((row) => row.retainUv14d),
+    retainUv15d: sumNullable((row) => row.retainUv15d),
+    retainUv16d: sumNullable((row) => row.retainUv16d),
+    retainUv17d: sumNullable((row) => row.retainUv17d),
+    retainUv18d: sumNullable((row) => row.retainUv18d),
+    retainUv19d: sumNullable((row) => row.retainUv19d),
+    retainUv20d: sumNullable((row) => row.retainUv20d),
+    retainUv21d: sumNullable((row) => row.retainUv21d),
+    retainUv22d: sumNullable((row) => row.retainUv22d),
+    retainUv23d: sumNullable((row) => row.retainUv23d),
+    retainUv24d: sumNullable((row) => row.retainUv24d),
+    retainUv25d: sumNullable((row) => row.retainUv25d),
+    retainUv26d: sumNullable((row) => row.retainUv26d),
+    retainUv27d: sumNullable((row) => row.retainUv27d),
+    retainUv28d: sumNullable((row) => row.retainUv28d),
+    retainUv29d: sumNullable((row) => row.retainUv29d),
+    retainUv30d: sumNullable((row) => row.retainUv30d),
     adRevenue,
     vipRevenue,
     rechargeRevenue,

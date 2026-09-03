@@ -92,12 +92,14 @@ export function FilterBar({
   query,
   data,
   onChange,
-  onPlatformChange
+  onPlatformChange,
+  onResetPlans
 }: {
   query: QueryParams;
   data: DashboardResponse | null;
   onChange: (next: Partial<QueryParams>) => void;
   onPlatformChange: (platform: DataPlatform) => void;
+  onResetPlans?: () => void;
 }) {
   const ui = platformUi(query.platform);
   const presets = useMemo(() => buildPresetRanges(), []);
@@ -177,6 +179,7 @@ export function FilterBar({
       draft: next,
       forceCustomRange: false
     }));
+    onResetPlans?.();
     onChange(next);
   }
 

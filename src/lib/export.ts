@@ -8,6 +8,16 @@ import type {
 import { platformExportPrefix } from "./platform";
 import { statusMeta } from "./status";
 
+const RETENTION_DAYS = Array.from({ length: 30 }, (_, index) => index + 1);
+
+function retentionValue(
+  row: KeywordRow | DailyKeywordRow,
+  day: number
+): number | null | undefined {
+  const key = `retainUv${day}d`;
+  return (row as unknown as Record<string, unknown>)[key] as number | null | undefined;
+}
+
 export const XHS_CAMPAIGN_EXPORT_HEADERS = [
   "广告主ID", "推广计划ID", "推广计划名", "展示", "点击", "点击率", "激活", "注册",
   "成本", "付费UV", "会员收入", "充值收入", "付费收入", "总收益", "总ROI",
@@ -174,11 +184,7 @@ export function exportKeywordRows(rows: KeywordRow[], platform: DataPlatform) {
     "注册",
     "成本",
     "付费率",
-    "2留",
-    "3留",
-    "7留",
-    "14留",
-    "30留",
+    ...RETENTION_DAYS.map((day) => `D${day}留存设备数`),
     "LTV",
     "LTV倍率",
     "ARPU",
@@ -222,11 +228,7 @@ export function exportKeywordRows(rows: KeywordRow[], platform: DataPlatform) {
     row.registrations,
     row.cost,
     row.paymentRate,
-    row.retentionD2 ?? "",
-    row.retentionD3 ?? "",
-    row.retentionD7 ?? "",
-    row.retentionD14 ?? "",
-    row.retentionD30 ?? "",
+    ...RETENTION_DAYS.map((day) => retentionValue(row, day) ?? ""),
     row.ltv,
     row.ltvRate,
     row.arpu,
@@ -320,9 +322,7 @@ export function exportDailyRows(
     "单激活成本",
     "单注册成本",
     "付费率",
-    "2留",
-    "3留",
-    "7留",
+    ...RETENTION_DAYS.map((day) => `D${day}留存设备数`),
     "LTV",
     "LTV倍率",
     "ARPU",
@@ -371,9 +371,7 @@ export function exportDailyRows(
     row.activationCost,
     row.registrationCost,
     row.paymentRate,
-    row.retentionD2 ?? "",
-    row.retentionD3 ?? "",
-    row.retentionD7 ?? "",
+    ...RETENTION_DAYS.map((day) => retentionValue(row, day) ?? ""),
     row.ltv,
     row.ltvRate,
     row.arpu,

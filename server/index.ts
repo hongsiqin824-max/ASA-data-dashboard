@@ -2,7 +2,7 @@ import "./env"; // 必须第一行：先加载 .env.local，再让下面的模�
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { fetchLiveDailyRows, fetchLiveData } from "./starrocks";
+import { fetchLiveCampaigns, fetchLiveDailyRows, fetchLiveData } from "./starrocks";
 import { dataModelForPlatform } from "./data-model";
 import { adGroups, campaigns, channelGroups, channels, statuses } from "./filters";
 import { compactDate, parseRevenueMode, parseSourceMode } from "./shared";
@@ -64,6 +64,32 @@ app.get("/api/asa/data-model", (req, res) => {
   }
   const source = resolvePlatformSource(platform);
   res.json(dataModelForPlatform(platform, source.table));
+});
+
+app.get("/api/asa/campaigns", async (req, res) => {
+  const platform = parseDataPlatform(req.query.platform);
+  if (!platform) {
+    res.status(400).json({ error: SUPPORTED_PLATFORM_MESSAGE });
+    return;
+  }
+  if (platform !== "iOS") {
+    res.json({ platform, campaigns: [] });
+    return;
+  }
+
+  if (sourceMode !== "live") {
+    res.json({ platform, campaigns });
+    return;
+  }
+
+  try {
+    res.json({ platform, campaigns: await fetchLiveCampaigns(platform) });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "未知错误";
+    res.status(500).json({
+      error: `iOS 计划列表读取失败：${message}。请确认已开启飞连 VPN，且数据库账号对该表有查询权限。`
+    });
+  }
 });
 
 app.get("/api/asa/keyword-roi/sql", (req, res) => {

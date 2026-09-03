@@ -17,6 +17,35 @@ export type QueryParams = {
   revenueMode: "pay" | "ad" | "all";
 };
 
+export type CampaignOption = {
+  id: string;
+  name: string;
+};
+
+export async function fetchCampaignOptions(
+  platform: DataPlatform
+): Promise<CampaignOption[]> {
+  const query = new URLSearchParams({ platform });
+  const response = await fetch(withBase(`/api/asa/campaigns?${query.toString()}`));
+  if (!response.ok) {
+    let message = `计划列表请求失败：${response.status}`;
+    try {
+      const body = (await response.json()) as { error?: string };
+      if (body?.error) message = body.error;
+    } catch {
+      // Keep default status code message.
+    }
+    throw new Error(message);
+  }
+
+  const payload = (await response.json()) as {
+    platform: DataPlatform;
+    campaigns?: CampaignOption[];
+  };
+  ensurePlatformResponse(platform, payload.platform);
+  return payload.campaigns ?? [];
+}
+
 export async function fetchKeywordRoi(
   params: QueryParams,
   options: { cacheOnly?: boolean; forceRefresh?: boolean } = {}

@@ -14,6 +14,48 @@ import { platformUi } from "../lib/platform";
 import { EmptyRoi, MiniRoi } from "./ui/MiniRoi";
 import { RoiCell } from "./ui/RoiCell";
 
+const RETENTION_COLUMNS = [
+  { day: 1, key: "retainUv1d", label: "D1留存" },
+  { day: 2, key: "retainUv2d", label: "D2留存" },
+  { day: 3, key: "retainUv3d", label: "D3留存" },
+  { day: 4, key: "retainUv4d", label: "D4留存" },
+  { day: 5, key: "retainUv5d", label: "D5留存" },
+  { day: 6, key: "retainUv6d", label: "D6留存" },
+  { day: 7, key: "retainUv7d", label: "D7留存" },
+  { day: 8, key: "retainUv8d", label: "D8留存" },
+  { day: 9, key: "retainUv9d", label: "D9留存" },
+  { day: 10, key: "retainUv10d", label: "D10留存" },
+  { day: 11, key: "retainUv11d", label: "D11留存" },
+  { day: 12, key: "retainUv12d", label: "D12留存" },
+  { day: 13, key: "retainUv13d", label: "D13留存" },
+  { day: 14, key: "retainUv14d", label: "D14留存" },
+  { day: 15, key: "retainUv15d", label: "D15留存" },
+  { day: 16, key: "retainUv16d", label: "D16留存" },
+  { day: 17, key: "retainUv17d", label: "D17留存" },
+  { day: 18, key: "retainUv18d", label: "D18留存" },
+  { day: 19, key: "retainUv19d", label: "D19留存" },
+  { day: 20, key: "retainUv20d", label: "D20留存" },
+  { day: 21, key: "retainUv21d", label: "D21留存" },
+  { day: 22, key: "retainUv22d", label: "D22留存" },
+  { day: 23, key: "retainUv23d", label: "D23留存" },
+  { day: 24, key: "retainUv24d", label: "D24留存" },
+  { day: 25, key: "retainUv25d", label: "D25留存" },
+  { day: 26, key: "retainUv26d", label: "D26留存" },
+  { day: 27, key: "retainUv27d", label: "D27留存" },
+  { day: 28, key: "retainUv28d", label: "D28留存" },
+  { day: 29, key: "retainUv29d", label: "D29留存" },
+  { day: 30, key: "retainUv30d", label: "D30留存" }
+] as const;
+
+function renderRetention(
+  value: number | null | undefined,
+  day: number,
+  availableDays: number | null
+) {
+  if (availableDays === null || availableDays < day) return "-";
+  return value === null || value === undefined ? "-" : formatNumber(value);
+}
+
 export function DailyKeywordTable({
   rows,
   dataAsOfDate,
@@ -24,6 +66,7 @@ export function DailyKeywordTable({
   platform?: DataPlatform;
 }) {
   const ui = platformUi(platform);
+  const showRetention = platform === "iOS";
   const latestDateMs = latestRoiDateMs([
     dataAsOfDate,
     ...rows.map((row) => row.date)
@@ -66,6 +109,13 @@ export function DailyKeywordTable({
             <th>单激活成本</th>
             <th>单注册成本</th>
             <th>付费率</th>
+            {showRetention
+              ? RETENTION_COLUMNS.map(({ key, label }) => (
+                  <th key={key} title="留存设备数；同一设备可能在多个关键词中重复计数">
+                    {label}
+                  </th>
+                ))
+              : null}
             <th>LTV</th>
             <th>LTV倍率</th>
             <th>ARPU</th>
@@ -125,6 +175,13 @@ export function DailyKeywordTable({
               <td>{formatCurrency(row.activationCost)}</td>
               <td>{formatCurrency(row.registrationCost)}</td>
               <td>{formatPercent(row.paymentRate)}</td>
+              {showRetention
+                ? RETENTION_COLUMNS.map(({ day, key }) => (
+                    <td key={key}>
+                      {renderRetention(row[key], day, roiDaysAvailable(row.date, latestDateMs))}
+                    </td>
+                  ))
+                : null}
               <td>{formatCurrency(row.ltv)}</td>
               <td>{row.ltvRate.toFixed(2)}</td>
               <td>{formatCurrency(row.arpu)}</td>

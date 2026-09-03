@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { fetchKeywordDailyRows, fetchKeywordRoi } from "./lib/api";
+import { fetchCampaignOptions, fetchKeywordDailyRows, fetchKeywordRoi } from "./lib/api";
 import { dailyKeywordRowsToKeywordRows } from "./lib/daily-keywords";
 import {
   buildQuerySearch,
@@ -125,6 +125,11 @@ function App() {
   const [keywordScope, setKeywordScope] = useState<KeywordListScope>({
     type: "all"
   });
+  const [iosPlanSelection, setIosPlanSelection] = useState<string[] | null>(null);
+  const [iosPlanOptions, setIosPlanOptions] = useState<
+    Array<{ id: string; label: string }>
+  >([]);
+  const [iosPlanLoading, setIosPlanLoading] = useState(false);
   const [refreshRequest, setRefreshRequest] = useState({
     id: 0,
     mode: "query" as DashboardLoadMode
@@ -290,6 +295,34 @@ function App() {
   }, []);
 
   useEffect(() => {
+    if (query.platform !== "iOS" || homeView !== "keywords") {
+      return;
+    }
+
+    let active = true;
+    let settled = false;
+    queueMicrotask(() => {
+      if (active && !settled) setIosPlanLoading(true);
+    });
+    fetchCampaignOptions("iOS")
+      .then((options) => {
+        if (!active) return;
+        setIosPlanOptions(options.map((option) => ({ id: option.id, label: option.name })));
+      })
+      .catch(() => {
+        if (active) setIosPlanOptions([]);
+      })
+      .finally(() => {
+        settled = true;
+        if (active) setIosPlanLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [homeView, query.platform]);
+
+  useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
   }, []);
@@ -353,6 +386,10 @@ function App() {
       id: current.id + 1,
       mode: "refresh"
     }));
+  }
+
+  function resetIosPlanSelection() {
+    if (query.platform === "iOS") setIosPlanSelection(null);
   }
 
   const sortedRows = useMemo(() => {
@@ -588,6 +625,7 @@ function App() {
             data={data}
             onChange={updateQuery}
             onPlatformChange={changePlatform}
+            onResetPlans={resetIosPlanSelection}
           />
         ) : null}
 
@@ -649,6 +687,10 @@ function App() {
             scopedDateKeywordRows={scopedDateKeywordRows}
             scopedDateKeywordLoading={scopedDateKeywordLoading}
             scopedDateKeywordError={scopedDateKeywordError}
+            planOptions={iosPlanOptions}
+            planSelection={iosPlanSelection}
+            planLoading={iosPlanLoading}
+            onPlanSelectionChange={setIosPlanSelection}
             onOpen={openCampaignDetail}
             onOpenKeyword={openKeywordDetail}
             onViewChange={setHomeView}

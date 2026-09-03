@@ -24,6 +24,23 @@ function formatOptionalCurrency(value: number | null) {
   return value === null ? "-" : formatCurrency(value);
 }
 
+const RETENTION_COLUMNS = [
+  { day: 1, key: "retainUv1d", label: "D1留存" },
+  { day: 3, key: "retainUv3d", label: "D3留存" },
+  { day: 7, key: "retainUv7d", label: "D7留存" },
+  { day: 14, key: "retainUv14d", label: "D14留存" },
+  { day: 30, key: "retainUv30d", label: "D30留存" }
+] as const;
+
+function renderRetention(
+  value: number | null | undefined,
+  day: number,
+  availableDays: number | null
+) {
+  if (availableDays === null || availableDays < day) return "-";
+  return value === null || value === undefined ? "-" : formatNumber(value);
+}
+
 function renderWindowRoi(
   value: number,
   cost: number,
@@ -229,6 +246,7 @@ export function KeywordTable({
   onOpen: (keywordId: string, campaignId: string, adGroupId: string) => void;
 }) {
   const ui = platformUi(query.platform);
+  const showRetention = query.platform === "iOS";
   const parentFirst = keywordEntityOrder(query.platform)[0] === "parent";
   const [renderLimit, setRenderLimit] = useState(RENDER_BATCH_SIZE);
   const [sort, setSort] = useState<SortState>(null);
@@ -308,6 +326,13 @@ export function KeywordTable({
               <SortableHeader label="单激活成本" sortKey="activationCost" sort={sort} onSort={toggleSort} />
               <SortableHeader label="单注册成本" sortKey="registrationCost" sort={sort} onSort={toggleSort} />
               <SortableHeader label="付费率" sortKey="paymentRate" sort={sort} onSort={toggleSort} />
+              {showRetention
+                ? RETENTION_COLUMNS.map(({ key, label }) => (
+                    <th key={key} title="关键词留存设备数；同一设备可能在多个关键词中重复计数">
+                      {label}
+                    </th>
+                  ))
+                : null}
               <SortableHeader label="总 ROI" sortKey="roi" sort={sort} onSort={toggleSort} />
               <SortableHeader label="D1 ROI" sortKey="d1Roi" sort={sort} onSort={toggleSort} />
               <SortableHeader label="D2 ROI" sortKey="d2Roi" sort={sort} onSort={toggleSort} />
@@ -335,7 +360,9 @@ export function KeywordTable({
           </thead>
           <tbody>
             <tr className="keyword-summary-row">
-              <td>当前列表汇总</td>
+              <td title={showRetention ? "留存设备数为关键词行直接求和，未跨关键词去重" : undefined}>
+                {showRetention ? "当前列表汇总（关键词留存合计）" : "当前列表汇总"}
+              </td>
               {ui.hasChildEntity ? (
                 <td>{formatNumber(summary.keywordCount)} 个{ui.childEntity}</td>
               ) : null}
@@ -363,6 +390,13 @@ export function KeywordTable({
               <td>{formatOptionalCurrency(summary.activationCost)}</td>
               <td>{formatOptionalCurrency(summary.registrationCost)}</td>
               <td>-</td>
+              {showRetention
+                ? RETENTION_COLUMNS.map(({ day, key }) => (
+                    <td key={key} title="关键词留存合计，未跨关键词去重">
+                      {renderRetention(summary[key], day, summaryAvailableDays)}
+                    </td>
+                  ))
+                : null}
               <td>
                 <RoiCell value={summary.roi} />
               </td>
@@ -444,6 +478,13 @@ export function KeywordTable({
                 <td>{formatOptionalCurrency(row.activationCost)}</td>
                 <td>{formatOptionalCurrency(row.registrationCost)}</td>
                 <td>{formatPercent(row.paymentRate)}</td>
+                {showRetention
+                  ? RETENTION_COLUMNS.map(({ day, key }) => (
+                      <td key={key}>
+                        {renderRetention(row[key], day, roiDaysAvailable(row.firstDate, latestDateMs))}
+                      </td>
+                    ))
+                  : null}
                 <td>
                   <RoiCell value={row.roi} />
                 </td>
