@@ -124,6 +124,19 @@ export function aggregateCampaignDaily(
     .map((list) => {
       const sum = (pick: (r: DailyKeywordRow) => number) =>
         list.reduce((acc, r) => acc + pick(r), 0);
+      const sumNullable = (
+        pick: (r: DailyKeywordRow) => number | null | undefined
+      ) => {
+        let total = 0;
+        let hasValue = false;
+        list.forEach((row) => {
+          const value = pick(row);
+          if (value === null || value === undefined) return;
+          total += value;
+          hasValue = true;
+        });
+        return hasValue ? total : null;
+      };
       const cost = sum((r) => r.cost);
       const weightedRoi = (pick: (r: DailyKeywordRow) => number) =>
         cost > 0
@@ -150,6 +163,11 @@ export function aggregateCampaignDaily(
         totalRedownloads: sum((r) => r.totalRedownloads),
         activations: sum((r) => r.activations),
         registrations: sum((r) => r.registrations),
+        retainUv1d: sumNullable((r) => r.retainUv1d),
+        retainUv3d: sumNullable((r) => r.retainUv3d),
+        retainUv7d: sumNullable((r) => r.retainUv7d),
+        retainUv14d: sumNullable((r) => r.retainUv14d),
+        retainUv30d: sumNullable((r) => r.retainUv30d),
         cost: round(cost),
         totalPayUv,
         paymentRate: installs > 0 ? round(totalPayUv / installs, 4) : 0,

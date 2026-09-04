@@ -56,6 +56,19 @@ function matchesRoiFilter(roi: number, filter: RoiFilter) {
 function summarizeDailyRows(rows: DailyCampaignRow[]): DailyCampaignTableSummary {
   const sum = (pick: (row: DailyCampaignRow) => number) =>
     rows.reduce((total, row) => total + pick(row), 0);
+  const sumNullable = (
+    pick: (row: DailyCampaignRow) => number | null | undefined
+  ) => {
+    let total = 0;
+    let hasValue = false;
+    rows.forEach((row) => {
+      const value = pick(row);
+      if (value === null || value === undefined) return;
+      total += value;
+      hasValue = true;
+    });
+    return hasValue ? total : null;
+  };
   const cost = sum((row) => row.cost);
   const impressions = sum((row) => row.impressions);
   const taps = sum((row) => row.taps);
@@ -81,6 +94,11 @@ function summarizeDailyRows(rows: DailyCampaignRow[]): DailyCampaignTableSummary
     totalRedownloads: sum((row) => row.totalRedownloads),
     activations: sum((row) => row.activations),
     registrations: sum((row) => row.registrations),
+    retainUv1d: sumNullable((row) => row.retainUv1d),
+    retainUv3d: sumNullable((row) => row.retainUv3d),
+    retainUv7d: sumNullable((row) => row.retainUv7d),
+    retainUv14d: sumNullable((row) => row.retainUv14d),
+    retainUv30d: sumNullable((row) => row.retainUv30d),
     cost: round(cost),
     totalPayUv,
     paymentRate: installs > 0 ? round(totalPayUv / installs, 4) : 0,
@@ -523,6 +541,7 @@ export function CampaignListPage({
             maturityRows={dailyRows}
             dataAsOfDate={data?.dataAsOfDate}
             platform={query.platform}
+            showOverallRetention={query.platform === "iOS"}
             onOpenKeywords={ui.hasChildEntity ? onOpenDateKeywords : undefined}
           />
         )}

@@ -6,6 +6,11 @@ import type {
   KeywordRow
 } from "./types";
 import { platformExportPrefix } from "./platform";
+import {
+  isOverallRetentionMature,
+  retentionDaysAvailable,
+  retentionRate
+} from "./retention-maturity";
 import { statusMeta } from "./status";
 
 const RETENTION_DAYS = Array.from({ length: 30 }, (_, index) => index + 1);
@@ -408,7 +413,8 @@ export function exportDailyRows(
 
 export function exportDailySummaryRows(
   rows: DailyCampaignRow[],
-  platform: DataPlatform
+  platform: DataPlatform,
+  dataAsOfDate?: string | null
 ) {
   if (platform === "Xiaohongshu") {
     downloadCsv(
@@ -450,6 +456,19 @@ export function exportDailySummaryRows(
     return;
   }
 
+  const latestRetentionDate = dataAsOfDate ??
+    rows.map((row) => row.date).sort().at(-1) ?? null;
+  const retentionPercent = (
+    row: DailyCampaignRow,
+    key: "retainUv1d" | "retainUv3d" | "retainUv7d" | "retainUv14d" | "retainUv30d"
+  ) => {
+    if (!isOverallRetentionMature(key, retentionDaysAvailable(row.date, latestRetentionDate))) {
+      return "";
+    }
+    const rate = retentionRate(row[key], row.activations);
+    return rate === null ? "" : `${(rate * 100).toFixed(2)}%`;
+  };
+
   const headers = [
     "日期",
     "关键词数",
@@ -464,6 +483,11 @@ export function exportDailySummaryRows(
     "总重下载",
     "激活",
     "注册",
+    "次日留存",
+    "3日留存",
+    "7日留存",
+    "14日留存",
+    "30日留存",
     "总成本",
     "付费率",
     "总充值UV",
@@ -497,6 +521,11 @@ export function exportDailySummaryRows(
     row.totalRedownloads,
     row.activations,
     row.registrations,
+    retentionPercent(row, "retainUv1d"),
+    retentionPercent(row, "retainUv3d"),
+    retentionPercent(row, "retainUv7d"),
+    retentionPercent(row, "retainUv14d"),
+    retentionPercent(row, "retainUv30d"),
     row.cost,
     row.paymentRate,
     row.totalPayUv,

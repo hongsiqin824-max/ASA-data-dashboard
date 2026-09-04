@@ -643,7 +643,7 @@ async function fetchDailySummaryRows(
   return list.map((r) => mapDailySummaryRow(r, params.revenueMode));
 }
 
-function mapDailySummaryRow(
+export function mapDailySummaryRow(
   r: Record<string, unknown>,
   mode: RevenueMode
 ): DailyCampaignRow {
@@ -678,6 +678,11 @@ function mapDailySummaryRow(
     totalRedownloads: num(r.total_redownloads),
     activations: num(r.new_user_cnt),
     registrations: num(r.new_register_cnt),
+    retainUv1d: nullableNum(r.retain_uv_1d),
+    retainUv3d: nullableNum(r.retain_uv_3d),
+    retainUv7d: nullableNum(r.retain_uv_7d),
+    retainUv14d: nullableNum(r.retain_uv_14d),
+    retainUv30d: nullableNum(r.retain_uv_30d),
     cost,
     totalPayUv: payUv,
     paymentRate: installs > 0 ? round(payUv / installs, 4) : 0,

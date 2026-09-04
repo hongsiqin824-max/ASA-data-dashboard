@@ -565,7 +565,12 @@ function App() {
   let exportDisabled = false;
   let onExport =
     homeView === "daily"
-      ? () => exportDailySummaryRows(data?.dailySummaryRows ?? [], query.platform)
+      ? () =>
+          exportDailySummaryRows(
+            data?.dailySummaryRows ?? [],
+            query.platform,
+            data?.dataAsOfDate
+          )
       : homeView === "campaigns"
       ? () => exportCampaignRows(campaignRows, query.platform)
       : () => exportKeywordRows(sortedRows, query.platform);

@@ -11,6 +11,11 @@ import {
   minimumRoiDaysAvailable,
   roiDaysAvailable
 } from "../lib/roi-maturity";
+import {
+  isOverallRetentionMature,
+  retentionDaysAvailable,
+  retentionRate
+} from "../lib/retention-maturity";
 import type { DailyCampaignRow, DataPlatform } from "../lib/types";
 import { platformUi } from "../lib/platform";
 import { EmptyRoi, MiniRoi } from "./ui/MiniRoi";
@@ -60,6 +65,22 @@ type SortState = {
 type SortValue = string | number | null;
 
 const textSortKeys = new Set<SortKey>(["date"]);
+
+const OVERALL_RETENTION_COLUMNS = [
+  { key: "retainUv1d", day: 1, label: "次日留存" },
+  { key: "retainUv3d", day: 3, label: "3日留存" },
+  { key: "retainUv7d", day: 7, label: "7日留存" },
+  { key: "retainUv14d", day: 14, label: "14日留存" },
+  { key: "retainUv30d", day: 30, label: "30日留存" }
+] as const;
+
+function formatRetentionRate(
+  retainedUsers: number | null | undefined,
+  activations: number | null | undefined
+) {
+  const rate = retentionRate(retainedUsers, activations);
+  return rate === null ? "-" : formatPercent(rate);
+}
 
 function sortValue(
   row: DailyCampaignRow,
@@ -128,6 +149,7 @@ export function DailyCampaignTable({
   maturityRows,
   dataAsOfDate,
   platform = "iOS",
+  showOverallRetention = false,
   onOpenKeywords
 }: {
   rows: DailyCampaignRow[];
@@ -135,6 +157,7 @@ export function DailyCampaignTable({
   maturityRows?: DailyCampaignRow[];
   dataAsOfDate?: string | null;
   platform?: DataPlatform;
+  showOverallRetention?: boolean;
   onOpenKeywords?: (date: string) => void;
 }) {
   const ui = platformUi(platform);
@@ -151,6 +174,14 @@ export function DailyCampaignTable({
     () => minimumRoiDaysAvailable(rows.map((row) => row.date), latestMs),
     [latestMs, rows]
   );
+  const latestRetentionDate = dataAsOfDate ??
+    (maturityRows ?? rows).map((row) => row.date).sort().at(-1) ?? null;
+  const summaryRetentionAvailableDays = useMemo(() => {
+    const available = rows
+      .map((row) => retentionDaysAvailable(row.date, latestRetentionDate))
+      .filter((days): days is number => days !== null);
+    return available.length > 0 ? Math.min(...available) : null;
+  }, [latestRetentionDate, rows]);
   const sortedRows = useMemo(() => {
     if (!sort) return rows;
     return [...rows].sort((left, right) => {
@@ -175,6 +206,22 @@ export function DailyCampaignTable({
       return <EmptyRoi />;
     }
     return <MiniRoi value={row[key as keyof DailyCampaignRow] as number} />;
+  }
+
+  function renderRetention(
+    row: DailyCampaignRow,
+    key: (typeof OVERALL_RETENTION_COLUMNS)[number]["key"]
+  ) {
+    const available = retentionDaysAvailable(row.date, latestRetentionDate);
+    if (!isOverallRetentionMature(key, available)) return "-";
+    return formatRetentionRate(row[key], row.activations);
+  }
+
+  function renderSummaryRetention(
+    key: (typeof OVERALL_RETENTION_COLUMNS)[number]["key"]
+  ) {
+    if (!isOverallRetentionMature(key, summaryRetentionAvailableDays)) return "-";
+    return formatRetentionRate(summary?.[key], summary?.activations);
   }
 
   function toggleSort(key: SortKey) {
@@ -218,6 +265,11 @@ export function DailyCampaignTable({
             ) : null}
             <SortableHeader label="激活" sortKey="activations" sort={sort} onSort={toggleSort} />
             <SortableHeader label="注册" sortKey="registrations" sort={sort} onSort={toggleSort} />
+            {showOverallRetention
+              ? OVERALL_RETENTION_COLUMNS.map(({ key, label }) => (
+                  <th key={key}>{label}</th>
+                ))
+              : null}
             <SortableHeader label="总成本" sortKey="cost" sort={sort} onSort={toggleSort} />
             <SortableHeader
               label={ui.hasPaymentRate ? "付费率" : "付费UV"}
@@ -274,6 +326,11 @@ export function DailyCampaignTable({
               ) : null}
               <td>{formatNumber(summary.activations)}</td>
               <td>{formatNumber(summary.registrations)}</td>
+              {showOverallRetention
+                ? OVERALL_RETENTION_COLUMNS.map(({ key }) => (
+                    <td key={key}>{renderSummaryRetention(key)}</td>
+                  ))
+                : null}
               <td>{formatCurrency(summary.cost)}</td>
               <td>
                 {ui.hasPaymentRate
@@ -359,6 +416,11 @@ export function DailyCampaignTable({
               ) : null}
               <td>{formatNumber(row.activations)}</td>
               <td>{formatNumber(row.registrations)}</td>
+              {showOverallRetention
+                ? OVERALL_RETENTION_COLUMNS.map(({ key }) => (
+                    <td key={key}>{renderRetention(row, key)}</td>
+                  ))
+                : null}
               <td>{formatCurrency(row.cost)}</td>
               <td>
                 {ui.hasPaymentRate

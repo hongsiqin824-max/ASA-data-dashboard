@@ -1,7 +1,7 @@
 import type { QueryParams } from "./api";
 import type { DashboardResponse } from "./types";
 
-const CACHE_VERSION = 11;
+const CACHE_VERSION = 12;
 const ITEM_PREFIX = `asa-roi-dashboard:v${CACHE_VERSION}:dashboard:`;
 const INDEX_KEY = `asa-roi-dashboard:v${CACHE_VERSION}:index`;
 const MAX_CACHE_ITEMS = 8;

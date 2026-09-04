@@ -63,7 +63,15 @@ export const REQUIRED_SOURCE_COLUMNS = [
   "ad_revenue_6d",
   "ad_revenue_7d",
   "ad_revenue_15d",
-  "ad_revenue_30d"
+  "ad_revenue_30d",
+  "retain_uv_1d", "retain_uv_2d", "retain_uv_3d", "retain_uv_4d",
+  "retain_uv_5d", "retain_uv_6d", "retain_uv_7d", "retain_uv_8d",
+  "retain_uv_9d", "retain_uv_10d", "retain_uv_11d", "retain_uv_12d",
+  "retain_uv_13d", "retain_uv_14d", "retain_uv_15d", "retain_uv_16d",
+  "retain_uv_17d", "retain_uv_18d", "retain_uv_19d", "retain_uv_20d",
+  "retain_uv_21d", "retain_uv_22d", "retain_uv_23d", "retain_uv_24d",
+  "retain_uv_25d", "retain_uv_26d", "retain_uv_27d", "retain_uv_28d",
+  "retain_uv_29d", "retain_uv_30d"
 ] as const;
 
 export const HARMONY_REQUIRED_SOURCE_COLUMNS = [

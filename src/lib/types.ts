@@ -139,7 +139,10 @@ export type CampaignRow = {
 };
 
 // 计划内「按天」聚合行：某计划下所有关键词每日行按 date 合并（见 lib/campaign.ts）。
-export type DailyCampaignRow = {
+export type DailyCampaignRow = Pick<
+  RetainUvFields,
+  "retainUv1d" | "retainUv3d" | "retainUv7d" | "retainUv14d" | "retainUv30d"
+> & {
   date: string;
   keywordCount: number;
   impressions: number;
