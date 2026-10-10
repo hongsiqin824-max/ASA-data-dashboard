@@ -53,7 +53,13 @@ export const dataModel = {
     "token.refund_status 哪些值代表已退款",
     "token.client_type 是否需要限制 iOS 以及 iOS 枚举值",
     "ROI 时间窗口是全生命周期还是安装后固定 N 天",
-    "留存、广告展现、eCPM 等扩展观察字段的数据源"
+    "留存、广告展现、eCPM 等扩展观察字段的数据源",
+    // 成品表仅存 1~7/15/30/60 共 10 个收入窗口，缺 8~14、16~29 天，ROI 无法连续展示。
+    // 60 日之后（70~180）只建了 roi_Nd，没有对应的 revenue_Nd，因此前端只能展示到 D60。
+    // 原始链路（归因表 + 广告/会员/充值三类收入表）数据齐全，见 sql/02_关键词ROI_核心字段.sql，
+    // 需数仓在建表逻辑补 revenue_Nd / revenue_vip_Nd / revenue_charge_Nd / ad_revenue_Nd
+    // 四类 x 20 个窗口 = 80 个字段并回刷历史。同一张表的 retain_uv_1d~30d 已是连续 30 天。
+    "ROI 窗口缺 8~14、16~29 天：待数仓补 80 个收入字段并回刷历史"
   ]
 } as const;
 

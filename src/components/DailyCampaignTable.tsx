@@ -9,7 +9,8 @@ import {
   isRoiWindowMature,
   latestRoiDateMs,
   minimumRoiDaysAvailable,
-  roiDaysAvailable
+  roiDaysAvailable,
+  type RoiWindowKey
 } from "../lib/roi-maturity";
 import {
   isOverallRetentionMature,
@@ -17,7 +18,9 @@ import {
   retentionRate
 } from "../lib/retention-maturity";
 import type { DailyCampaignRow, DataPlatform } from "../lib/types";
+import { extendedRoiColumns } from "../lib/roi-columns";
 import { platformUi } from "../lib/platform";
+import { retentionColumns, type RetentionColumn } from "../lib/retention-columns";
 import { EmptyRoi, MiniRoi } from "./ui/MiniRoi";
 import { RoiCell } from "./ui/RoiCell";
 
@@ -47,15 +50,7 @@ type SortKey =
   | "payRevenue"
   | "totalRevenue"
   | "roi"
-  | "d1Roi"
-  | "d2Roi"
-  | "d3Roi"
-  | "d4Roi"
-  | "d5Roi"
-  | "d6Roi"
-  | "d7Roi"
-  | "d15Roi"
-  | "d30Roi";
+  | RoiWindowKey;
 
 type SortState = {
   key: SortKey;
@@ -65,14 +60,6 @@ type SortState = {
 type SortValue = string | number | null;
 
 const textSortKeys = new Set<SortKey>(["date"]);
-
-const OVERALL_RETENTION_COLUMNS = [
-  { key: "retainUv1d", day: 1, label: "次日留存" },
-  { key: "retainUv3d", day: 3, label: "3日留存" },
-  { key: "retainUv7d", day: 7, label: "7日留存" },
-  { key: "retainUv14d", day: 14, label: "14日留存" },
-  { key: "retainUv30d", day: 30, label: "30日留存" }
-] as const;
 
 function formatRetentionRate(
   retainedUsers: number | null | undefined,
@@ -150,6 +137,8 @@ export function DailyCampaignTable({
   dataAsOfDate,
   platform = "iOS",
   showOverallRetention = false,
+  showAllRetention = false,
+  showAllRoi = false,
   onOpenKeywords
 }: {
   rows: DailyCampaignRow[];
@@ -158,9 +147,16 @@ export function DailyCampaignTable({
   dataAsOfDate?: string | null;
   platform?: DataPlatform;
   showOverallRetention?: boolean;
+  /** 明细页传 true：展示全部留存档位；列表页保持精简。 */
+  showAllRetention?: boolean;
+  /** 明细页传 true：追加 40 日及以上的 ROI 档位；列表页保持精简。 */
+  showAllRoi?: boolean;
   onOpenKeywords?: (date: string) => void;
 }) {
   const ui = platformUi(platform);
+  const OVERALL_RETENTION_COLUMNS = retentionColumns(showAllRetention, "");
+  const extendedRoi =
+    showAllRoi && ui.hasExtendedRoiWindows ? extendedRoiColumns() : [];
   const [sort, setSort] = useState<SortState>(null);
   const latestMs = useMemo(
     () =>
@@ -194,8 +190,8 @@ export function DailyCampaignTable({
     });
   }, [rows, sort, latestMs]);
 
-  function renderSummaryWindowRoi(value: number, key: SortKey) {
-    if (!isRoiWindowMature(key, summaryAvailableDays)) {
+  function renderSummaryWindowRoi(value: number | null, key: SortKey) {
+    if (value === null || !isRoiWindowMature(key, summaryAvailableDays)) {
       return <EmptyRoi />;
     }
     return <MiniRoi value={value} />;
@@ -205,12 +201,15 @@ export function DailyCampaignTable({
     if (!isRoiWindowMature(key, roiDaysAvailable(row.date, latestMs))) {
       return <EmptyRoi />;
     }
-    return <MiniRoi value={row[key as keyof DailyCampaignRow] as number} />;
+    const value = row[key as keyof DailyCampaignRow] as number | null;
+    // 40 日及以上档位在非「全部」收益口径下取不到值
+    if (value === null) return <EmptyRoi />;
+    return <MiniRoi value={value} />;
   }
 
   function renderRetention(
     row: DailyCampaignRow,
-    key: (typeof OVERALL_RETENTION_COLUMNS)[number]["key"]
+    key: RetentionColumn["key"]
   ) {
     const available = retentionDaysAvailable(row.date, latestRetentionDate);
     if (!isOverallRetentionMature(key, available)) return "-";
@@ -218,7 +217,7 @@ export function DailyCampaignTable({
   }
 
   function renderSummaryRetention(
-    key: (typeof OVERALL_RETENTION_COLUMNS)[number]["key"]
+    key: RetentionColumn["key"]
   ) {
     if (!isOverallRetentionMature(key, summaryRetentionAvailableDays)) return "-";
     return formatRetentionRate(summary?.[key], summary?.activations);
@@ -270,7 +269,7 @@ export function DailyCampaignTable({
                   <th key={key}>{label}</th>
                 ))
               : null}
-            <SortableHeader label="总成本" sortKey="cost" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="总消耗" sortKey="cost" sort={sort} onSort={toggleSort} />
             <SortableHeader
               label={ui.hasPaymentRate ? "付费率" : "付费UV"}
               sortKey={ui.hasPaymentRate ? "paymentRate" : "totalPayUv"}
@@ -299,6 +298,16 @@ export function DailyCampaignTable({
             <SortableHeader label="7日ROI" sortKey="d7Roi" sort={sort} onSort={toggleSort} />
             <SortableHeader label="15日ROI" sortKey="d15Roi" sort={sort} onSort={toggleSort} />
             <SortableHeader label="30日ROI" sortKey="d30Roi" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="60日ROI" sortKey="d60Roi" sort={sort} onSort={toggleSort} />
+            {extendedRoi.map((col) => (
+              <SortableHeader
+                key={col.key}
+                label={col.labelCn}
+                sortKey={col.key}
+                sort={sort}
+                onSort={toggleSort}
+              />
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -379,6 +388,14 @@ export function DailyCampaignTable({
               <td>
                 {renderSummaryWindowRoi(summary.d30Roi, "d30Roi")}
               </td>
+              <td>
+                {renderSummaryWindowRoi(summary.d60Roi, "d60Roi")}
+              </td>
+              {extendedRoi.map((col) => (
+                <td key={col.key}>
+                  {renderSummaryWindowRoi(summary[col.key], col.key)}
+                </td>
+              ))}
             </tr>
           ) : null}
           {sortedRows.map((row) => (
@@ -469,6 +486,12 @@ export function DailyCampaignTable({
               <td>
                 {renderRowWindowRoi(row, "d30Roi")}
               </td>
+              <td>
+                {renderRowWindowRoi(row, "d60Roi")}
+              </td>
+              {extendedRoi.map((col) => (
+                <td key={col.key}>{renderRowWindowRoi(row, col.key)}</td>
+              ))}
             </tr>
           ))}
         </tbody>

@@ -3,7 +3,9 @@ import type {
   DailyCampaignRow,
   DailyKeywordRow,
   DataPlatform,
-  KeywordRow
+  ExtendedRoiFields,
+  KeywordRow,
+  RetainUvFields
 } from "./types";
 import {
   buildPlatformSourceRelation,
@@ -41,7 +43,11 @@ function nullableNum(value: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-const RETENTION_DAYS = Array.from({ length: 30 }, (_, index) => index + 1);
+// 1~30 日逐日，之后按 10 日步长到 180 日（数仓只建了这些档位，没有 31~39 等中间天）。
+const RETENTION_DAYS = [
+  ...Array.from({ length: 30 }, (_, index) => index + 1),
+  ...Array.from({ length: 15 }, (_, index) => 40 + index * 10)
+];
 
 /**
  * 生成留存设备数字段的 SELECT 片段。
@@ -58,6 +64,67 @@ function retentionUvSelect(
     const column = `${alias}.${field}`;
     return `${aggregate === "sum" ? `SUM(${column})` : column} AS ${field}`;
   }).join(",\n      ");
+}
+
+/**
+ * 把查询结果里的 retain_uv_Nd 列映射成 RetainUvFields（retainUvNd）。
+ * 平台无该列时 nullableNum 会返回 null，与真实的 0 区分。
+ */
+function mapRetainUvFields(r: Record<string, unknown>) {
+  const fields: Record<string, number | null> = {};
+  for (const day of RETENTION_DAYS) {
+    fields[`retainUv${day}d`] = nullableNum(r[`retain_uv_${day}d`]);
+  }
+  return fields as RetainUvFields;
+}
+
+// 40 日及以上的 ROI 档位。数仓只给了算好的 roi_Nd，没有 revenue 明细，
+// 所以这些档位走「直接读取」而非前端现算，也无法按收益口径拆分。
+const EXTENDED_ROI_DAYS = [
+  40, 50,
+  ...Array.from({ length: 12 }, (_, index) => 70 + index * 10)
+];
+
+/**
+ * 生成 40 日及以上 ROI 字段的 SELECT 片段。
+ * 只有 iOS 表建了这些列，其它平台直接返回 NULL，避免查询失败。
+ *
+ * 聚合口径与 D1~D60 完全一致：分母固定为全部花费，不挑批次。
+ * ROI 是比值不能直接相加，按成本加权还原 Σ(roi×spend)/Σ(spend)，
+ * 等价于 Σ(revenue)/Σ(spend)。
+ * 各窗口共用同一批数据和同一个分母，才能保证 D50 ≥ D40 的累计语义；
+ * 若按窗口是否到期筛掉部分批次，各列分母不同，反而会倒挂。
+ * 窗口是否到期由前端 isRoiWindowMature 统一判断，不在这里处理。
+ */
+function extendedRoiSelect(
+  platform: DataPlatform,
+  alias: string,
+  aggregate: "sum" | "raw"
+) {
+  return EXTENDED_ROI_DAYS.map((windowDays) => {
+    const field = `roi_${windowDays}d`;
+    if (platform !== "iOS") return `NULL AS ${field}`;
+    const column = `${alias}.${field}`;
+    if (aggregate === "raw") return `${column} AS ${field}`;
+    const spend = `${alias}.spend`;
+    return `SUM(${column} * ${spend}) / NULLIF(SUM(${spend}), 0) AS ${field}`;
+  }).join(",\n      ");
+}
+
+/**
+ * 把 roi_Nd 列映射成 ExtendedRoiFields（dNRoi）。
+ * 非「全部」口径下这些档位无法拆分，统一取 null 让界面显示 "-"。
+ */
+function mapExtendedRoiFields(
+  r: Record<string, unknown>,
+  mode: RevenueMode
+) {
+  const fields: Record<string, number | null> = {};
+  for (const day of EXTENDED_ROI_DAYS) {
+    const value = mode === "all" ? nullableNum(r[`roi_${day}d`]) : null;
+    fields[`d${day}Roi`] = value === null ? null : round(value, 4);
+  }
+  return fields as ExtendedRoiFields;
 }
 
 // 按总 ROI 阈值自动分层：>=100% 高 ROI / 30%~100% 中 ROI / <30% 低 ROI
@@ -212,6 +279,7 @@ async function fetchSummaryRows(params: LiveQueryParams): Promise<KeywordRow[]> 
       SUM(t.revenue_7d) AS revenue_7d,
       SUM(t.revenue_15d) AS revenue_15d,
       SUM(t.revenue_30d) AS revenue_30d,
+        SUM(t.revenue_60d) AS revenue_60d,
       SUM(t.revenue_vip_1d) AS revenue_vip_1d,
       SUM(t.revenue_vip_2d) AS revenue_vip_2d,
       SUM(t.revenue_vip_3d) AS revenue_vip_3d,
@@ -221,6 +289,7 @@ async function fetchSummaryRows(params: LiveQueryParams): Promise<KeywordRow[]> 
       SUM(t.revenue_vip_7d) AS revenue_vip_7d,
       SUM(t.revenue_vip_15d) AS revenue_vip_15d,
       SUM(t.revenue_vip_30d) AS revenue_vip_30d,
+        SUM(t.revenue_vip_60d) AS revenue_vip_60d,
       SUM(t.revenue_charge_1d) AS revenue_charge_1d,
       SUM(t.revenue_charge_2d) AS revenue_charge_2d,
       SUM(t.revenue_charge_3d) AS revenue_charge_3d,
@@ -230,6 +299,7 @@ async function fetchSummaryRows(params: LiveQueryParams): Promise<KeywordRow[]> 
       SUM(t.revenue_charge_7d) AS revenue_charge_7d,
       SUM(t.revenue_charge_15d) AS revenue_charge_15d,
       SUM(t.revenue_charge_30d) AS revenue_charge_30d,
+        SUM(t.revenue_charge_60d) AS revenue_charge_60d,
       SUM(t.ad_revenue_1d) AS ad_revenue_1d,
       SUM(t.ad_revenue_2d) AS ad_revenue_2d,
       SUM(t.ad_revenue_3d) AS ad_revenue_3d,
@@ -239,7 +309,9 @@ async function fetchSummaryRows(params: LiveQueryParams): Promise<KeywordRow[]> 
       SUM(t.ad_revenue_7d) AS ad_revenue_7d,
       SUM(t.ad_revenue_15d) AS ad_revenue_15d,
       SUM(t.ad_revenue_30d) AS ad_revenue_30d,
+        SUM(t.ad_revenue_60d) AS ad_revenue_60d,
       ${retentionUvSelect(params.platform, "t", "sum")},
+      ${extendedRoiSelect(params.platform, "t", "sum")},
       MIN(CASE
         WHEN t.spend > 0 OR t.total_installs > 0 OR t.new_user_cnt > 0 OR t.new_register_cnt > 0
         THEN t.day
@@ -325,36 +397,8 @@ function mapSummaryRow(
     retentionD7: null,
     retentionD14: null,
     retentionD30: null,
-    retainUv1d: nullableNum(r.retain_uv_1d),
-    retainUv2d: nullableNum(r.retain_uv_2d),
-    retainUv3d: nullableNum(r.retain_uv_3d),
-    retainUv4d: nullableNum(r.retain_uv_4d),
-    retainUv5d: nullableNum(r.retain_uv_5d),
-    retainUv6d: nullableNum(r.retain_uv_6d),
-    retainUv7d: nullableNum(r.retain_uv_7d),
-    retainUv8d: nullableNum(r.retain_uv_8d),
-    retainUv9d: nullableNum(r.retain_uv_9d),
-    retainUv10d: nullableNum(r.retain_uv_10d),
-    retainUv11d: nullableNum(r.retain_uv_11d),
-    retainUv12d: nullableNum(r.retain_uv_12d),
-    retainUv13d: nullableNum(r.retain_uv_13d),
-    retainUv14d: nullableNum(r.retain_uv_14d),
-    retainUv15d: nullableNum(r.retain_uv_15d),
-    retainUv16d: nullableNum(r.retain_uv_16d),
-    retainUv17d: nullableNum(r.retain_uv_17d),
-    retainUv18d: nullableNum(r.retain_uv_18d),
-    retainUv19d: nullableNum(r.retain_uv_19d),
-    retainUv20d: nullableNum(r.retain_uv_20d),
-    retainUv21d: nullableNum(r.retain_uv_21d),
-    retainUv22d: nullableNum(r.retain_uv_22d),
-    retainUv23d: nullableNum(r.retain_uv_23d),
-    retainUv24d: nullableNum(r.retain_uv_24d),
-    retainUv25d: nullableNum(r.retain_uv_25d),
-    retainUv26d: nullableNum(r.retain_uv_26d),
-    retainUv27d: nullableNum(r.retain_uv_27d),
-    retainUv28d: nullableNum(r.retain_uv_28d),
-    retainUv29d: nullableNum(r.retain_uv_29d),
-    retainUv30d: nullableNum(r.retain_uv_30d),
+    ...mapRetainUvFields(r),
+    ...mapExtendedRoiFields(r, mode),
     ltv: installs > 0 ? round(totalRevenue / installs, 2) : 0,
     ltvRate: registrations > 0 ? round(totalRevenue / registrations, 2) : 0,
     arpu: installs > 0 ? round(totalRevenue / installs, 2) : 0,
@@ -380,6 +424,7 @@ function mapSummaryRow(
     d7Roi: windowRoi(cost, r.revenue_7d, r.revenue_vip_7d, r.revenue_charge_7d, r.ad_revenue_7d, mode),
     d15Roi: windowRoi(cost, r.revenue_15d, r.revenue_vip_15d, r.revenue_charge_15d, r.ad_revenue_15d, mode),
     d30Roi: windowRoi(cost, r.revenue_30d, r.revenue_vip_30d, r.revenue_charge_30d, r.ad_revenue_30d, mode),
+    d60Roi: windowRoi(cost, r.revenue_60d, r.revenue_vip_60d, r.revenue_charge_60d, r.ad_revenue_60d, mode),
     status: statusFromRoi(roi)
   };
 }
@@ -462,14 +507,15 @@ async function fetchDailyRows(params: LiveQueryParams): Promise<DailyKeywordRow[
       pay_uv, pay_uv_1d, cost_per_pay,
       revenue_total, revenue_vip_total, revenue_charge_total, ad_revenue_total,
       revenue_1d, revenue_2d, revenue_3d, revenue_4d, revenue_5d, revenue_6d, revenue_7d,
-      revenue_15d, revenue_30d,
+      revenue_15d, revenue_30d, revenue_60d,
       revenue_vip_1d, revenue_vip_2d, revenue_vip_3d, revenue_vip_4d, revenue_vip_5d, revenue_vip_6d, revenue_vip_7d,
-      revenue_vip_15d, revenue_vip_30d,
+      revenue_vip_15d, revenue_vip_30d, revenue_vip_60d,
       revenue_charge_1d, revenue_charge_2d, revenue_charge_3d, revenue_charge_4d, revenue_charge_5d, revenue_charge_6d, revenue_charge_7d,
-      revenue_charge_15d, revenue_charge_30d,
+      revenue_charge_15d, revenue_charge_30d, revenue_charge_60d,
       ad_revenue_1d, ad_revenue_2d, ad_revenue_3d, ad_revenue_4d, ad_revenue_5d, ad_revenue_6d, ad_revenue_7d,
-      ad_revenue_15d, ad_revenue_30d,
-      ${retentionUvSelect(params.platform, "source_daily", "raw")}
+      ad_revenue_15d, ad_revenue_30d, ad_revenue_60d,
+      ${retentionUvSelect(params.platform, "source_daily", "raw")},
+      ${extendedRoiSelect(params.platform, "source_daily", "raw")}
     FROM ${table} source_daily
     WHERE ${where}
     ORDER BY day DESC, spend DESC
@@ -528,6 +574,7 @@ async function fetchDailySummaryRows(
         SUM(t.revenue_7d) AS revenue_7d,
         SUM(t.revenue_15d) AS revenue_15d,
         SUM(t.revenue_30d) AS revenue_30d,
+        SUM(t.revenue_60d) AS revenue_60d,
         SUM(t.revenue_vip_1d) AS revenue_vip_1d,
         SUM(t.revenue_vip_2d) AS revenue_vip_2d,
         SUM(t.revenue_vip_3d) AS revenue_vip_3d,
@@ -537,6 +584,7 @@ async function fetchDailySummaryRows(
         SUM(t.revenue_vip_7d) AS revenue_vip_7d,
         SUM(t.revenue_vip_15d) AS revenue_vip_15d,
         SUM(t.revenue_vip_30d) AS revenue_vip_30d,
+        SUM(t.revenue_vip_60d) AS revenue_vip_60d,
         SUM(t.revenue_charge_1d) AS revenue_charge_1d,
         SUM(t.revenue_charge_2d) AS revenue_charge_2d,
         SUM(t.revenue_charge_3d) AS revenue_charge_3d,
@@ -546,6 +594,7 @@ async function fetchDailySummaryRows(
         SUM(t.revenue_charge_7d) AS revenue_charge_7d,
         SUM(t.revenue_charge_15d) AS revenue_charge_15d,
         SUM(t.revenue_charge_30d) AS revenue_charge_30d,
+        SUM(t.revenue_charge_60d) AS revenue_charge_60d,
         SUM(t.ad_revenue_1d) AS ad_revenue_1d,
         SUM(t.ad_revenue_2d) AS ad_revenue_2d,
         SUM(t.ad_revenue_3d) AS ad_revenue_3d,
@@ -555,7 +604,9 @@ async function fetchDailySummaryRows(
         SUM(t.ad_revenue_7d) AS ad_revenue_7d,
         SUM(t.ad_revenue_15d) AS ad_revenue_15d,
         SUM(t.ad_revenue_30d) AS ad_revenue_30d,
-        ${retentionUvSelect(params.platform, "t", "sum")}
+        SUM(t.ad_revenue_60d) AS ad_revenue_60d,
+        ${retentionUvSelect(params.platform, "t", "sum")},
+        ${extendedRoiSelect(params.platform, "t", "sum")}
       FROM ${table} t
       JOIN keyword_scope s
         ON t.campaign_id = s.campaign_id
@@ -606,6 +657,7 @@ async function fetchDailySummaryRows(
       SUM(revenue_7d) AS revenue_7d,
       SUM(revenue_15d) AS revenue_15d,
       SUM(revenue_30d) AS revenue_30d,
+      SUM(revenue_60d) AS revenue_60d,
       SUM(revenue_vip_1d) AS revenue_vip_1d,
       SUM(revenue_vip_2d) AS revenue_vip_2d,
       SUM(revenue_vip_3d) AS revenue_vip_3d,
@@ -615,6 +667,7 @@ async function fetchDailySummaryRows(
       SUM(revenue_vip_7d) AS revenue_vip_7d,
       SUM(revenue_vip_15d) AS revenue_vip_15d,
       SUM(revenue_vip_30d) AS revenue_vip_30d,
+      SUM(revenue_vip_60d) AS revenue_vip_60d,
       SUM(revenue_charge_1d) AS revenue_charge_1d,
       SUM(revenue_charge_2d) AS revenue_charge_2d,
       SUM(revenue_charge_3d) AS revenue_charge_3d,
@@ -624,6 +677,7 @@ async function fetchDailySummaryRows(
       SUM(revenue_charge_7d) AS revenue_charge_7d,
       SUM(revenue_charge_15d) AS revenue_charge_15d,
       SUM(revenue_charge_30d) AS revenue_charge_30d,
+      SUM(revenue_charge_60d) AS revenue_charge_60d,
       SUM(ad_revenue_1d) AS ad_revenue_1d,
       SUM(ad_revenue_2d) AS ad_revenue_2d,
       SUM(ad_revenue_3d) AS ad_revenue_3d,
@@ -633,7 +687,9 @@ async function fetchDailySummaryRows(
       SUM(ad_revenue_7d) AS ad_revenue_7d,
       SUM(ad_revenue_15d) AS ad_revenue_15d,
       SUM(ad_revenue_30d) AS ad_revenue_30d,
-      ${retentionUvSelect(params.platform, "source_daily_summary", "sum")}
+      SUM(ad_revenue_60d) AS ad_revenue_60d,
+      ${retentionUvSelect(params.platform, "source_daily_summary", "sum")},
+      ${extendedRoiSelect(params.platform, "source_daily_summary", "sum")}
     FROM ${table} source_daily_summary
     WHERE ${where}
     GROUP BY day
@@ -678,11 +734,8 @@ export function mapDailySummaryRow(
     totalRedownloads: num(r.total_redownloads),
     activations: num(r.new_user_cnt),
     registrations: num(r.new_register_cnt),
-    retainUv1d: nullableNum(r.retain_uv_1d),
-    retainUv3d: nullableNum(r.retain_uv_3d),
-    retainUv7d: nullableNum(r.retain_uv_7d),
-    retainUv14d: nullableNum(r.retain_uv_14d),
-    retainUv30d: nullableNum(r.retain_uv_30d),
+    ...mapRetainUvFields(r),
+    ...mapExtendedRoiFields(r, mode),
     cost,
     totalPayUv: payUv,
     paymentRate: installs > 0 ? round(payUv / installs, 4) : 0,
@@ -700,7 +753,8 @@ export function mapDailySummaryRow(
     d6Roi: windowRoi(cost, r.revenue_6d, r.revenue_vip_6d, r.revenue_charge_6d, r.ad_revenue_6d, mode),
     d7Roi: windowRoi(cost, r.revenue_7d, r.revenue_vip_7d, r.revenue_charge_7d, r.ad_revenue_7d, mode),
     d15Roi: windowRoi(cost, r.revenue_15d, r.revenue_vip_15d, r.revenue_charge_15d, r.ad_revenue_15d, mode),
-    d30Roi: windowRoi(cost, r.revenue_30d, r.revenue_vip_30d, r.revenue_charge_30d, r.ad_revenue_30d, mode)
+    d30Roi: windowRoi(cost, r.revenue_30d, r.revenue_vip_30d, r.revenue_charge_30d, r.ad_revenue_30d, mode),
+    d60Roi: windowRoi(cost, r.revenue_60d, r.revenue_vip_60d, r.revenue_charge_60d, r.ad_revenue_60d, mode)
   };
 }
 
@@ -758,36 +812,8 @@ function mapDailyRow(
     retentionD2: null,
     retentionD3: null,
     retentionD7: null,
-    retainUv1d: nullableNum(r.retain_uv_1d),
-    retainUv2d: nullableNum(r.retain_uv_2d),
-    retainUv3d: nullableNum(r.retain_uv_3d),
-    retainUv4d: nullableNum(r.retain_uv_4d),
-    retainUv5d: nullableNum(r.retain_uv_5d),
-    retainUv6d: nullableNum(r.retain_uv_6d),
-    retainUv7d: nullableNum(r.retain_uv_7d),
-    retainUv8d: nullableNum(r.retain_uv_8d),
-    retainUv9d: nullableNum(r.retain_uv_9d),
-    retainUv10d: nullableNum(r.retain_uv_10d),
-    retainUv11d: nullableNum(r.retain_uv_11d),
-    retainUv12d: nullableNum(r.retain_uv_12d),
-    retainUv13d: nullableNum(r.retain_uv_13d),
-    retainUv14d: nullableNum(r.retain_uv_14d),
-    retainUv15d: nullableNum(r.retain_uv_15d),
-    retainUv16d: nullableNum(r.retain_uv_16d),
-    retainUv17d: nullableNum(r.retain_uv_17d),
-    retainUv18d: nullableNum(r.retain_uv_18d),
-    retainUv19d: nullableNum(r.retain_uv_19d),
-    retainUv20d: nullableNum(r.retain_uv_20d),
-    retainUv21d: nullableNum(r.retain_uv_21d),
-    retainUv22d: nullableNum(r.retain_uv_22d),
-    retainUv23d: nullableNum(r.retain_uv_23d),
-    retainUv24d: nullableNum(r.retain_uv_24d),
-    retainUv25d: nullableNum(r.retain_uv_25d),
-    retainUv26d: nullableNum(r.retain_uv_26d),
-    retainUv27d: nullableNum(r.retain_uv_27d),
-    retainUv28d: nullableNum(r.retain_uv_28d),
-    retainUv29d: nullableNum(r.retain_uv_29d),
-    retainUv30d: nullableNum(r.retain_uv_30d),
+    ...mapRetainUvFields(r),
+    ...mapExtendedRoiFields(r, mode),
     ltv: installs > 0 ? round(totalRevenue / installs, 2) : 0,
     ltvRate: registrations > 0 ? round(totalRevenue / registrations, 2) : 0,
     arpu: installs > 0 ? round(totalRevenue / installs, 2) : 0,
@@ -813,7 +839,8 @@ function mapDailyRow(
     d6Roi: windowRoi(cost, r.revenue_6d, r.revenue_vip_6d, r.revenue_charge_6d, r.ad_revenue_6d, mode),
     d7Roi: windowRoi(cost, r.revenue_7d, r.revenue_vip_7d, r.revenue_charge_7d, r.ad_revenue_7d, mode),
     d15Roi: windowRoi(cost, r.revenue_15d, r.revenue_vip_15d, r.revenue_charge_15d, r.ad_revenue_15d, mode),
-    d30Roi: windowRoi(cost, r.revenue_30d, r.revenue_vip_30d, r.revenue_charge_30d, r.ad_revenue_30d, mode)
+    d30Roi: windowRoi(cost, r.revenue_30d, r.revenue_vip_30d, r.revenue_charge_30d, r.ad_revenue_30d, mode),
+    d60Roi: windowRoi(cost, r.revenue_60d, r.revenue_vip_60d, r.revenue_charge_60d, r.ad_revenue_60d, mode)
   };
 }
 

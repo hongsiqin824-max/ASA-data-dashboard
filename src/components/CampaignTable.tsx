@@ -50,6 +50,7 @@ type SortKey =
   | "d7Roi"
   | "d15Roi"
   | "d30Roi"
+  | "d60Roi"
   | "status";
 
 type SortState = {
@@ -211,7 +212,7 @@ export function CampaignTable({
             ) : null}
             <SortableHeader label="激活" sortKey="activations" sort={sort} onSort={toggleSort} />
             <SortableHeader label="注册" sortKey="registrations" sort={sort} onSort={toggleSort} />
-            <SortableHeader label="成本" sortKey="cost" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="消耗" sortKey="cost" sort={sort} onSort={toggleSort} />
             <SortableHeader
               label={ui.hasPaymentRate ? "付费率" : "付费UV"}
               sortKey={ui.hasPaymentRate ? "paymentRate" : "totalPayUv"}
@@ -246,6 +247,7 @@ export function CampaignTable({
             <SortableHeader label="D7" sortKey="d7Roi" sort={sort} onSort={toggleSort} />
             <SortableHeader label="D15" sortKey="d15Roi" sort={sort} onSort={toggleSort} />
             <SortableHeader label="D30" sortKey="d30Roi" sort={sort} onSort={toggleSort} />
+            <SortableHeader label="D60" sortKey="d60Roi" sort={sort} onSort={toggleSort} />
             <SortableHeader label="状态" sortKey="status" sort={sort} onSort={toggleSort} />
           </tr>
         </thead>
@@ -327,6 +329,9 @@ export function CampaignTable({
             </td>
             <td>
               {renderWindowRoi(summary.d30Roi, "d30Roi", summaryAvailableDays)}
+            </td>
+            <td>
+              {renderWindowRoi(summary.d60Roi, "d60Roi", summaryAvailableDays)}
             </td>
             <td>-</td>
           </tr>
@@ -457,6 +462,9 @@ export function CampaignTable({
               </td>
               <td>
                 {renderWindowRoi(row.d30Roi, "d30Roi", roiDaysAvailable(row.firstDate, latestDateMs))}
+              </td>
+              <td>
+                {renderWindowRoi(row.d60Roi, "d60Roi", roiDaysAvailable(row.firstDate, latestDateMs))}
               </td>
               <td>
                 <StatusBadge status={row.status} />

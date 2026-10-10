@@ -64,6 +64,10 @@ export const REQUIRED_SOURCE_COLUMNS = [
   "ad_revenue_7d",
   "ad_revenue_15d",
   "ad_revenue_30d",
+  "revenue_60d",
+  "revenue_vip_60d",
+  "revenue_charge_60d",
+  "ad_revenue_60d",
   "retain_uv_1d", "retain_uv_2d", "retain_uv_3d", "retain_uv_4d",
   "retain_uv_5d", "retain_uv_6d", "retain_uv_7d", "retain_uv_8d",
   "retain_uv_9d", "retain_uv_10d", "retain_uv_11d", "retain_uv_12d",
@@ -71,7 +75,12 @@ export const REQUIRED_SOURCE_COLUMNS = [
   "retain_uv_17d", "retain_uv_18d", "retain_uv_19d", "retain_uv_20d",
   "retain_uv_21d", "retain_uv_22d", "retain_uv_23d", "retain_uv_24d",
   "retain_uv_25d", "retain_uv_26d", "retain_uv_27d", "retain_uv_28d",
-  "retain_uv_29d", "retain_uv_30d"
+  "retain_uv_29d", "retain_uv_30d",
+  // 30 日之后按 10 日步长，到 180 日
+  "retain_uv_40d", "retain_uv_50d", "retain_uv_60d", "retain_uv_70d",
+  "retain_uv_80d", "retain_uv_90d", "retain_uv_100d", "retain_uv_110d",
+  "retain_uv_120d", "retain_uv_130d", "retain_uv_140d", "retain_uv_150d",
+  "retain_uv_160d", "retain_uv_170d", "retain_uv_180d"
 ] as const;
 
 export const HARMONY_REQUIRED_SOURCE_COLUMNS = [
@@ -130,7 +139,10 @@ export const HARMONY_REQUIRED_SOURCE_COLUMNS = [
   "roi_6d",
   "roi_7d",
   "roi_15d",
-  "roi_30d"
+  "roi_30d",
+  "revenue_60d",
+  "revenue_vip_60d",
+  "revenue_charge_60d"
 ] as const;
 
 export const XHS_REQUIRED_SOURCE_COLUMNS = [

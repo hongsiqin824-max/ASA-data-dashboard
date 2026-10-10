@@ -48,7 +48,7 @@ export function KeywordDetailPage({
             icon={<TrendingUp size={19} />}
           />
           <Metric
-            label="投放成本"
+            label="投放消耗"
             value={formatCurrency(keyword.cost)}
             trend={`${ui.installMetric} ${formatNumber(keyword.installs)}`}
             icon={<BarChart3 size={19} />}
@@ -102,7 +102,13 @@ export function KeywordDetailPage({
             </p>
           </div>
         </div>
-        <DailyKeywordTable rows={rows} dataAsOfDate={dataAsOfDate} platform={keyword.platform} />
+        <DailyKeywordTable
+          rows={rows}
+          dataAsOfDate={dataAsOfDate}
+          platform={keyword.platform}
+          showAllRetention
+          showAllRoi
+        />
       </section>
     </section>
   );

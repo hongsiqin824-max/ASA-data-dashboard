@@ -4,6 +4,8 @@ export type {
   DailyKeywordRow,
   DataPlatform,
   DashboardResponse,
+  ExtendedRoiFields,
   KeywordRow,
-  KeywordStatus
+  KeywordStatus,
+  RetainUvFields
 } from "../src/lib/types";

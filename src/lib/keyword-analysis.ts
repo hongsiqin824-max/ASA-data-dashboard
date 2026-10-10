@@ -1,4 +1,5 @@
-import type { DailyKeywordRow, KeywordRow } from "./types";
+import type { DailyKeywordRow, ExtendedRoiFields, KeywordRow } from "./types";
+import { aggregateExtendedRoi } from "./roi-columns";
 
 export type KeywordSort = "impact" | "cost" | "roi" | "activationCost" | "registrationCost";
 
@@ -10,7 +11,7 @@ export type KeywordAnalysisRow = KeywordRow & {
   registrationCost: number | null;
 };
 
-export type KeywordTableSummary = {
+export type KeywordTableSummary = ExtendedRoiFields & {
   keywordCount: number;
   impressions: number;
   taps: number;
@@ -57,6 +58,21 @@ export type KeywordTableSummary = {
   retainUv28d: number | null;
   retainUv29d: number | null;
   retainUv30d: number | null;
+  retainUv40d: number | null;
+  retainUv50d: number | null;
+  retainUv60d: number | null;
+  retainUv70d: number | null;
+  retainUv80d: number | null;
+  retainUv90d: number | null;
+  retainUv100d: number | null;
+  retainUv110d: number | null;
+  retainUv120d: number | null;
+  retainUv130d: number | null;
+  retainUv140d: number | null;
+  retainUv150d: number | null;
+  retainUv160d: number | null;
+  retainUv170d: number | null;
+  retainUv180d: number | null;
   adRevenue: number;
   vipRevenue: number;
   rechargeRevenue: number;
@@ -72,6 +88,7 @@ export type KeywordTableSummary = {
   d7Roi: number;
   d15Roi: number;
   d30Roi: number;
+  d60Roi: number;
 };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -259,6 +276,21 @@ export function summarizeKeywordRows(rows: KeywordAnalysisRow[]): KeywordTableSu
     retainUv28d: sumNullable((row) => row.retainUv28d),
     retainUv29d: sumNullable((row) => row.retainUv29d),
     retainUv30d: sumNullable((row) => row.retainUv30d),
+    retainUv40d: sumNullable((row) => row.retainUv40d),
+    retainUv50d: sumNullable((row) => row.retainUv50d),
+    retainUv60d: sumNullable((row) => row.retainUv60d),
+    retainUv70d: sumNullable((row) => row.retainUv70d),
+    retainUv80d: sumNullable((row) => row.retainUv80d),
+    retainUv90d: sumNullable((row) => row.retainUv90d),
+    retainUv100d: sumNullable((row) => row.retainUv100d),
+    retainUv110d: sumNullable((row) => row.retainUv110d),
+    retainUv120d: sumNullable((row) => row.retainUv120d),
+    retainUv130d: sumNullable((row) => row.retainUv130d),
+    retainUv140d: sumNullable((row) => row.retainUv140d),
+    retainUv150d: sumNullable((row) => row.retainUv150d),
+    retainUv160d: sumNullable((row) => row.retainUv160d),
+    retainUv170d: sumNullable((row) => row.retainUv170d),
+    retainUv180d: sumNullable((row) => row.retainUv180d),
     adRevenue,
     vipRevenue,
     rechargeRevenue,
@@ -273,6 +305,8 @@ export function summarizeKeywordRows(rows: KeywordAnalysisRow[]): KeywordTableSu
     d6Roi: weightedRoi((row) => row.d6Roi),
     d7Roi: weightedRoi((row) => row.d7Roi),
     d15Roi: weightedRoi((row) => row.d15Roi),
-    d30Roi: weightedRoi((row) => row.d30Roi)
+    d30Roi: weightedRoi((row) => row.d30Roi),
+    d60Roi: weightedRoi((row) => row.d60Roi),
+    ...aggregateExtendedRoi(rows, (row) => row.cost)
   };
 }

@@ -109,7 +109,7 @@ export function CampaignDetailPage({
             icon={<TrendingUp size={19} />}
           />
           <Metric
-            label="投放成本"
+            label="投放消耗"
             value={formatCurrency(campaign.cost)}
             trend={
               ui.hasInstallMetric
@@ -191,9 +191,18 @@ export function CampaignDetailPage({
             latestDateMs={latestDateMs}
             summaryAvailableDays={summaryAvailableDays}
             onOpen={onOpenKeyword}
+            showAllRetention
+            showAllRoi
           />
         ) : (
-          <DailyCampaignTable rows={dailyRows} dataAsOfDate={dataAsOfDate} platform={query.platform} />
+          <DailyCampaignTable
+            rows={dailyRows}
+            dataAsOfDate={dataAsOfDate}
+            platform={query.platform}
+            showOverallRetention={query.platform === "iOS"}
+            showAllRetention
+            showAllRoi
+          />
         )}
       </section>
     </section>

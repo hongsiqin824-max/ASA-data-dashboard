@@ -8,6 +8,7 @@ import type {
   KeywordRow,
   KeywordStatus
 } from "./types";
+import { aggregateExtendedRoi } from "./roi-columns";
 
 function round(value: number, digits = 2) {
   const base = 10 ** digits;
@@ -103,6 +104,8 @@ export function aggregateCampaigns(rows: KeywordRow[]): CampaignRow[] {
       d7Roi: weightedRoi((r) => r.d7Roi),
       d15Roi: weightedRoi((r) => r.d15Roi),
       d30Roi: weightedRoi((r) => r.d30Roi),
+      d60Roi: weightedRoi((r) => r.d60Roi),
+      ...aggregateExtendedRoi(list, (r) => r.cost),
       status: statusFromRoi(roi)
     };
   });
@@ -164,10 +167,50 @@ export function aggregateCampaignDaily(
         activations: sum((r) => r.activations),
         registrations: sum((r) => r.registrations),
         retainUv1d: sumNullable((r) => r.retainUv1d),
+        retainUv2d: sumNullable((r) => r.retainUv2d),
         retainUv3d: sumNullable((r) => r.retainUv3d),
+        retainUv4d: sumNullable((r) => r.retainUv4d),
+        retainUv5d: sumNullable((r) => r.retainUv5d),
+        retainUv6d: sumNullable((r) => r.retainUv6d),
         retainUv7d: sumNullable((r) => r.retainUv7d),
+        retainUv8d: sumNullable((r) => r.retainUv8d),
+        retainUv9d: sumNullable((r) => r.retainUv9d),
+        retainUv10d: sumNullable((r) => r.retainUv10d),
+        retainUv11d: sumNullable((r) => r.retainUv11d),
+        retainUv12d: sumNullable((r) => r.retainUv12d),
+        retainUv13d: sumNullable((r) => r.retainUv13d),
         retainUv14d: sumNullable((r) => r.retainUv14d),
+        retainUv15d: sumNullable((r) => r.retainUv15d),
+        retainUv16d: sumNullable((r) => r.retainUv16d),
+        retainUv17d: sumNullable((r) => r.retainUv17d),
+        retainUv18d: sumNullable((r) => r.retainUv18d),
+        retainUv19d: sumNullable((r) => r.retainUv19d),
+        retainUv20d: sumNullable((r) => r.retainUv20d),
+        retainUv21d: sumNullable((r) => r.retainUv21d),
+        retainUv22d: sumNullable((r) => r.retainUv22d),
+        retainUv23d: sumNullable((r) => r.retainUv23d),
+        retainUv24d: sumNullable((r) => r.retainUv24d),
+        retainUv25d: sumNullable((r) => r.retainUv25d),
+        retainUv26d: sumNullable((r) => r.retainUv26d),
+        retainUv27d: sumNullable((r) => r.retainUv27d),
+        retainUv28d: sumNullable((r) => r.retainUv28d),
+        retainUv29d: sumNullable((r) => r.retainUv29d),
         retainUv30d: sumNullable((r) => r.retainUv30d),
+        retainUv40d: sumNullable((r) => r.retainUv40d),
+        retainUv50d: sumNullable((r) => r.retainUv50d),
+        retainUv60d: sumNullable((r) => r.retainUv60d),
+        retainUv70d: sumNullable((r) => r.retainUv70d),
+        retainUv80d: sumNullable((r) => r.retainUv80d),
+        retainUv90d: sumNullable((r) => r.retainUv90d),
+        retainUv100d: sumNullable((r) => r.retainUv100d),
+        retainUv110d: sumNullable((r) => r.retainUv110d),
+        retainUv120d: sumNullable((r) => r.retainUv120d),
+        retainUv130d: sumNullable((r) => r.retainUv130d),
+        retainUv140d: sumNullable((r) => r.retainUv140d),
+        retainUv150d: sumNullable((r) => r.retainUv150d),
+        retainUv160d: sumNullable((r) => r.retainUv160d),
+        retainUv170d: sumNullable((r) => r.retainUv170d),
+        retainUv180d: sumNullable((r) => r.retainUv180d),
         cost: round(cost),
         totalPayUv,
         paymentRate: installs > 0 ? round(totalPayUv / installs, 4) : 0,
@@ -185,7 +228,9 @@ export function aggregateCampaignDaily(
         d6Roi: weightedRoi((r) => r.d6Roi),
         d7Roi: weightedRoi((r) => r.d7Roi),
         d15Roi: weightedRoi((r) => r.d15Roi),
-        d30Roi: weightedRoi((r) => r.d30Roi)
+        d30Roi: weightedRoi((r) => r.d30Roi),
+        d60Roi: weightedRoi((r) => r.d60Roi),
+        ...aggregateExtendedRoi(list, (r) => r.cost)
       };
     })
     .sort((a, b) => b.date.localeCompare(a.date));

@@ -49,6 +49,7 @@ export function platformUi(platform: DataPlatform) {
       hasInstallMetric: true,
       hasPaymentRate: true,
       hasFullRoiWindows: false,
+      hasExtendedRoiWindows: false,
       hasAdRevenue: false,
       hasIosInstallBreakdown: false
     } as const;
@@ -64,6 +65,7 @@ export function platformUi(platform: DataPlatform) {
       hasInstallMetric: false,
       hasPaymentRate: false,
       hasFullRoiWindows: true,
+      hasExtendedRoiWindows: false,
       hasAdRevenue: false,
       hasIosInstallBreakdown: false
     } as const;
@@ -78,6 +80,8 @@ export function platformUi(platform: DataPlatform) {
     hasInstallMetric: true,
     hasPaymentRate: true,
     hasFullRoiWindows: false,
+    // 只有 iOS 表建了 roi_40d~roi_180d
+    hasExtendedRoiWindows: true,
     hasAdRevenue: true,
     hasIosInstallBreakdown: true
   } as const;

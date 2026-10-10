@@ -1,7 +1,9 @@
 import { resolvePlatformSource } from "./platform";
 import type { DataPlatform } from "./types";
 
-const roiWindows = ["1d", "2d", "3d", "4d", "5d", "6d", "7d", "15d", "30d"] as const;
+const roiWindows = [
+  "1d", "2d", "3d", "4d", "5d", "6d", "7d", "15d", "30d", "60d"
+] as const;
 
 export function platformKeywordSearchColumn(platform: DataPlatform) {
   return platform === "iOS" ? "keyword" : "campaign_name";

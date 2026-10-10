@@ -5,7 +5,10 @@ export const overallRetentionDays = {
   retainUv3d: 3,
   retainUv7d: 7,
   retainUv14d: 14,
-  retainUv30d: 30
+  retainUv30d: 30,
+  retainUv60d: 60,
+  retainUv90d: 90,
+  retainUv180d: 180
 } as const;
 
 export type OverallRetentionKey = keyof typeof overallRetentionDays;
@@ -28,12 +31,26 @@ export function retentionDaysAvailable(
   return Math.max(0, Math.floor((latestMs - cohortMs) / DAY_MS));
 }
 
+/**
+ * 从 retainUvNd 解析出该窗口需要的天数。
+ * overallRetentionDays 只声明了列表页展示的档位，明细页会展开全部档位（含 2、40、50、70 日等），
+ * 这些档位同样要参与成熟度判断，否则会被当成「已成熟」而直接显示未到期的数据。
+ * 返回 null 表示传入的不是留存字段，不参与判断。
+ */
+function retentionWindowDay(key: string): number | null {
+  const declared = overallRetentionDays[key as OverallRetentionKey];
+  if (declared !== undefined) return declared;
+  const match = key.match(/^retainUv(\d+)d$/);
+  return match ? Number(match[1]) : null;
+}
+
 export function isOverallRetentionMature(
   key: string,
   availableDays: number | null
 ) {
-  const required = overallRetentionDays[key as OverallRetentionKey];
-  return required === undefined || (availableDays !== null && availableDays >= required);
+  const required = retentionWindowDay(key);
+  if (required === null) return true;
+  return availableDays !== null && availableDays >= required;
 }
 
 /**

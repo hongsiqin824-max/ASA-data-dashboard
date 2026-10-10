@@ -11,41 +11,10 @@ import {
 } from "../lib/roi-maturity";
 import type { DailyKeywordRow, DataPlatform } from "../lib/types";
 import { platformUi } from "../lib/platform";
+import { retentionColumns } from "../lib/retention-columns";
+import { extendedRoiColumns } from "../lib/roi-columns";
 import { EmptyRoi, MiniRoi } from "./ui/MiniRoi";
 import { RoiCell } from "./ui/RoiCell";
-
-const RETENTION_COLUMNS = [
-  { day: 1, key: "retainUv1d", label: "D1留存" },
-  { day: 2, key: "retainUv2d", label: "D2留存" },
-  { day: 3, key: "retainUv3d", label: "D3留存" },
-  { day: 4, key: "retainUv4d", label: "D4留存" },
-  { day: 5, key: "retainUv5d", label: "D5留存" },
-  { day: 6, key: "retainUv6d", label: "D6留存" },
-  { day: 7, key: "retainUv7d", label: "D7留存" },
-  { day: 8, key: "retainUv8d", label: "D8留存" },
-  { day: 9, key: "retainUv9d", label: "D9留存" },
-  { day: 10, key: "retainUv10d", label: "D10留存" },
-  { day: 11, key: "retainUv11d", label: "D11留存" },
-  { day: 12, key: "retainUv12d", label: "D12留存" },
-  { day: 13, key: "retainUv13d", label: "D13留存" },
-  { day: 14, key: "retainUv14d", label: "D14留存" },
-  { day: 15, key: "retainUv15d", label: "D15留存" },
-  { day: 16, key: "retainUv16d", label: "D16留存" },
-  { day: 17, key: "retainUv17d", label: "D17留存" },
-  { day: 18, key: "retainUv18d", label: "D18留存" },
-  { day: 19, key: "retainUv19d", label: "D19留存" },
-  { day: 20, key: "retainUv20d", label: "D20留存" },
-  { day: 21, key: "retainUv21d", label: "D21留存" },
-  { day: 22, key: "retainUv22d", label: "D22留存" },
-  { day: 23, key: "retainUv23d", label: "D23留存" },
-  { day: 24, key: "retainUv24d", label: "D24留存" },
-  { day: 25, key: "retainUv25d", label: "D25留存" },
-  { day: 26, key: "retainUv26d", label: "D26留存" },
-  { day: 27, key: "retainUv27d", label: "D27留存" },
-  { day: 28, key: "retainUv28d", label: "D28留存" },
-  { day: 29, key: "retainUv29d", label: "D29留存" },
-  { day: 30, key: "retainUv30d", label: "D30留存" }
-] as const;
 
 function renderRetention(
   value: number | null | undefined,
@@ -59,14 +28,23 @@ function renderRetention(
 export function DailyKeywordTable({
   rows,
   dataAsOfDate,
-  platform = "iOS"
+  platform = "iOS",
+  showAllRetention = false,
+  showAllRoi = false
 }: {
   rows: DailyKeywordRow[];
   dataAsOfDate?: string | null;
   platform?: DataPlatform;
+  /** 明细页传 true：展示全部留存档位；列表页保持精简。 */
+  showAllRetention?: boolean;
+  /** 明细页传 true：追加 40 日及以上的 ROI 档位；列表页保持精简。 */
+  showAllRoi?: boolean;
 }) {
   const ui = platformUi(platform);
   const showRetention = platform === "iOS";
+  const RETENTION_COLUMNS = retentionColumns(showAllRetention);
+  const extendedRoi =
+    showAllRoi && ui.hasExtendedRoiWindows ? extendedRoiColumns() : [];
   const latestDateMs = latestRoiDateMs([
     dataAsOfDate,
     ...rows.map((row) => row.date)
@@ -76,7 +54,10 @@ export function DailyKeywordTable({
     if (!isRoiWindowMature(key, roiDaysAvailable(row.date, latestDateMs))) {
       return <EmptyRoi />;
     }
-    return <MiniRoi value={row[key]} />;
+    const value = row[key];
+    // 40 日及以上档位在非「全部」收益口径下取不到值
+    if (value === null) return <EmptyRoi />;
+    return <MiniRoi value={value} />;
   }
 
   return (
@@ -105,7 +86,7 @@ export function DailyKeywordTable({
             )}
             <th>激活</th>
             <th>注册</th>
-            <th>总成本</th>
+            <th>总消耗</th>
             <th>单激活成本</th>
             <th>单注册成本</th>
             <th>付费率</th>
@@ -145,6 +126,10 @@ export function DailyKeywordTable({
             <th>7日ROI</th>
             <th>15日ROI</th>
             <th>30日ROI</th>
+            <th>60日ROI</th>
+            {extendedRoi.map((col) => (
+              <th key={col.key}>{col.labelCn}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
@@ -231,6 +216,12 @@ export function DailyKeywordTable({
               <td>
                 {renderWindowRoi(row, "d30Roi")}
               </td>
+              <td>
+                {renderWindowRoi(row, "d60Roi")}
+              </td>
+              {extendedRoi.map((col) => (
+                <td key={col.key}>{renderWindowRoi(row, col.key)}</td>
+              ))}
             </tr>
           ))}
         </tbody>

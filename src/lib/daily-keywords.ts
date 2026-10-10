@@ -1,4 +1,5 @@
 import type { DailyKeywordRow, KeywordRow, KeywordStatus } from "./types";
+import { pickExtendedRoi } from "./roi-columns";
 
 function round(value: number, digits = 2) {
   const base = 10 ** digits;
@@ -89,6 +90,21 @@ export function dailyKeywordRowsToKeywordRows(
       retainUv28d: row.retainUv28d,
       retainUv29d: row.retainUv29d,
       retainUv30d: row.retainUv30d,
+      retainUv40d: row.retainUv40d,
+      retainUv50d: row.retainUv50d,
+      retainUv60d: row.retainUv60d,
+      retainUv70d: row.retainUv70d,
+      retainUv80d: row.retainUv80d,
+      retainUv90d: row.retainUv90d,
+      retainUv100d: row.retainUv100d,
+      retainUv110d: row.retainUv110d,
+      retainUv120d: row.retainUv120d,
+      retainUv130d: row.retainUv130d,
+      retainUv140d: row.retainUv140d,
+      retainUv150d: row.retainUv150d,
+      retainUv160d: row.retainUv160d,
+      retainUv170d: row.retainUv170d,
+      retainUv180d: row.retainUv180d,
       ltv: row.ltv,
       ltvRate: row.ltvRate,
       arpu: row.arpu,
@@ -114,6 +130,8 @@ export function dailyKeywordRowsToKeywordRows(
       d7Roi: row.d7Roi,
       d15Roi: row.d15Roi,
       d30Roi: row.d30Roi,
+      d60Roi: row.d60Roi,
+      ...pickExtendedRoi(row),
       status: statusFromRoi(row.roi)
     };
   });

@@ -107,6 +107,20 @@ test("整体留存按完成天数成熟，D1 不提前一天", () => {
   assert.equal(isOverallRetentionMature("retainUv30d", 30), true);
 });
 
+test("未在展示档位中声明的留存窗口同样按天数成熟，不得默认放行", () => {
+  // 明细页会展开 2、40、50、70 日等档位，这些不在 overallRetentionDays 里，
+  // 若被当成已成熟会直接显示未到期的数据。
+  assert.equal(isOverallRetentionMature("retainUv2d", 1), false);
+  assert.equal(isOverallRetentionMature("retainUv2d", 2), true);
+  assert.equal(isOverallRetentionMature("retainUv40d", 39), false);
+  assert.equal(isOverallRetentionMature("retainUv40d", 40), true);
+  assert.equal(isOverallRetentionMature("retainUv180d", 179), false);
+  // 天数未知（null）时一律视为未成熟
+  assert.equal(isOverallRetentionMature("retainUv40d", null), false);
+  // 非留存字段不参与成熟度判断
+  assert.equal(isOverallRetentionMature("cost", null), true);
+});
+
 test("留存百分比使用激活数作为分母，并保留无效分母为空", () => {
   assert.equal(retentionRate(25, 100), 0.25);
   assert.equal(retentionRate(0, 100), 0);

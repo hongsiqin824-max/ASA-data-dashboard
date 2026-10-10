@@ -13,7 +13,11 @@ import {
 } from "./retention-maturity";
 import { statusMeta } from "./status";
 
-const RETENTION_DAYS = Array.from({ length: 30 }, (_, index) => index + 1);
+// 1~30 日逐日，之后按 10 日步长到 180 日（与数仓建的档位一致）。
+const RETENTION_DAYS = [
+  ...Array.from({ length: 30 }, (_, index) => index + 1),
+  ...Array.from({ length: 15 }, (_, index) => 40 + index * 10)
+];
 
 function retentionValue(
   row: KeywordRow | DailyKeywordRow,
@@ -25,14 +29,14 @@ function retentionValue(
 
 export const XHS_CAMPAIGN_EXPORT_HEADERS = [
   "广告主ID", "推广计划ID", "推广计划名", "展示", "点击", "点击率", "激活", "注册",
-  "成本", "付费UV", "会员收入", "充值收入", "付费收入", "总收益", "总ROI",
+  "消耗", "付费UV", "会员收入", "充值收入", "付费收入", "总收益", "总ROI",
   "D1 ROI", "D2 ROI", "D3 ROI", "D4 ROI", "D5 ROI", "D6 ROI", "D7 ROI",
   "D15 ROI", "D30 ROI", "状态"
 ];
 
 export const XHS_DAILY_EXPORT_HEADERS = [
   "日期", "广告主ID", "推广计划ID", "推广计划名", "展示", "点击", "点击率", "激活",
-  "注册", "总成本", "单激活成本", "单注册成本", "付费UV", "1日付费UV", "会员收入",
+  "注册", "总消耗", "单激活成本", "单注册成本", "付费UV", "1日付费UV", "会员收入",
   "充值收入", "付费收入", "总收益", "总ROI", "1日ROI", "2日ROI", "3日ROI",
   "4日ROI", "5日ROI", "6日ROI", "7日ROI", "15日ROI", "30日ROI"
 ];
@@ -58,9 +62,9 @@ export function exportCampaignRows(rows: CampaignRow[], platform: DataPlatform) 
       "harmony-task-roi-summary.csv",
       [
         "任务ID", "任务名", "子任务数", "展示", "点击", "点击率", "下载",
-        "激活", "注册", "成本", "付费率", "付费UV", "会员收入", "充值收入",
+        "激活", "注册", "消耗", "付费率", "付费UV", "会员收入", "充值收入",
         "付费收入", "总收益", "总ROI", "D1 ROI", "D2 ROI", "D3 ROI",
-        "D4 ROI", "D5 ROI", "D6 ROI", "D7 ROI", "D15 ROI", "D30 ROI", "状态"
+        "D4 ROI", "D5 ROI", "D6 ROI", "D7 ROI", "D15 ROI", "D30 ROI", "D60 ROI", "状态"
       ],
       rows.map((row) => [
         row.campaignId, row.label, row.adGroupCount, row.impressions, row.taps,
@@ -68,7 +72,7 @@ export function exportCampaignRows(rows: CampaignRow[], platform: DataPlatform) 
         row.paymentRate, row.totalPayUv, row.vipRevenue, row.rechargeRevenue,
         row.payRevenue, row.totalRevenue, row.roi, row.d1Roi, row.d2Roi,
         row.d3Roi, row.d4Roi, row.d5Roi, row.d6Roi, row.d7Roi, row.d15Roi,
-        row.d30Roi, statusMeta[row.status].label
+        row.d30Roi, row.d60Roi, statusMeta[row.status].label
       ])
     );
     return;
@@ -90,7 +94,7 @@ export function exportCampaignRows(rows: CampaignRow[], platform: DataPlatform) 
     "总重下载",
     "激活",
     "注册",
-    "成本",
+    "消耗",
     "付费率",
     "总充值UV",
     "广告收入",
@@ -108,6 +112,7 @@ export function exportCampaignRows(rows: CampaignRow[], platform: DataPlatform) 
     "D7 ROI",
     "D15 ROI",
     "D30 ROI",
+    "D60 ROI",
     "状态"
   ];
   const body = rows.map((row) => [
@@ -144,6 +149,7 @@ export function exportCampaignRows(rows: CampaignRow[], platform: DataPlatform) 
     row.d7Roi,
     row.d15Roi,
     row.d30Roi,
+    row.d60Roi,
     statusMeta[row.status].label
   ]);
   downloadCsv(`${platformExportPrefix(platform)}-campaign-roi-summary.csv`, headers, body);
@@ -155,9 +161,9 @@ export function exportKeywordRows(rows: KeywordRow[], platform: DataPlatform) {
       "harmony-sub-task-roi-summary.csv",
       [
         "子任务ID", "任务ID", "任务名", "展示", "点击", "点击率", "下载",
-        "激活", "注册", "成本", "付费率", "付费UV", "会员收入", "充值收入",
+        "激活", "注册", "消耗", "付费率", "付费UV", "会员收入", "充值收入",
         "付费收入", "总收益", "总ROI", "D1 ROI", "D2 ROI", "D3 ROI",
-        "D4 ROI", "D5 ROI", "D6 ROI", "D7 ROI", "D15 ROI", "D30 ROI", "状态"
+        "D4 ROI", "D5 ROI", "D6 ROI", "D7 ROI", "D15 ROI", "D30 ROI", "D60 ROI", "状态"
       ],
       rows.map((row) => [
         row.keywordId, row.campaignId, row.campaignName, row.impressions, row.taps,
@@ -165,7 +171,7 @@ export function exportKeywordRows(rows: KeywordRow[], platform: DataPlatform) {
         row.paymentRate, row.totalPayUv, row.vipRevenue, row.rechargeRevenue,
         row.payRevenue, row.totalRevenue, row.roi, row.d1Roi, row.d2Roi,
         row.d3Roi, row.d4Roi, row.d5Roi, row.d6Roi, row.d7Roi, row.d15Roi,
-        row.d30Roi, statusMeta[row.status].label
+        row.d30Roi, row.d60Roi, statusMeta[row.status].label
       ])
     );
     return;
@@ -187,7 +193,7 @@ export function exportKeywordRows(rows: KeywordRow[], platform: DataPlatform) {
     "总重下载",
     "激活",
     "注册",
-    "成本",
+    "消耗",
     "付费率",
     ...RETENTION_DAYS.map((day) => `D${day}留存设备数`),
     "LTV",
@@ -213,6 +219,7 @@ export function exportKeywordRows(rows: KeywordRow[], platform: DataPlatform) {
     "D7 ROI",
     "D15 ROI",
     "D30 ROI",
+    "D60 ROI",
     "状态"
   ];
   const body = rows.map((row) => [
@@ -257,6 +264,7 @@ export function exportKeywordRows(rows: KeywordRow[], platform: DataPlatform) {
     row.d7Roi,
     row.d15Roi,
     row.d30Roi,
+    row.d60Roi,
     statusMeta[row.status].label
   ]);
   downloadCsv(`${platformExportPrefix(platform)}-keyword-roi-summary.csv`, headers, body);
@@ -277,7 +285,7 @@ export function exportDailyRows(
         row.cost, row.activationCost, row.registrationCost, row.totalPayUv,
         row.d1PayUv, row.vipRevenue, row.rechargeRevenue, row.payRevenue,
         row.totalRevenue, row.roi, row.d1Roi, row.d2Roi, row.d3Roi, row.d4Roi,
-        row.d5Roi, row.d6Roi, row.d7Roi, row.d15Roi, row.d30Roi
+        row.d5Roi, row.d6Roi, row.d7Roi, row.d15Roi, row.d30Roi, row.d60Roi
       ])
     );
     return;
@@ -288,10 +296,10 @@ export function exportDailyRows(
       `harmony-${keyword}-daily-detail.csv`,
       [
         "日期", "子任务ID", "任务ID", "任务名", "展示", "点击", "点击率", "下载",
-        "激活", "注册", "总成本", "单激活成本", "单注册成本", "付费率", "付费UV",
+        "激活", "注册", "总消耗", "单激活成本", "单注册成本", "付费率", "付费UV",
         "1日付费UV", "单付费成本", "会员收入", "充值收入", "付费收入", "总收益",
         "总ROI", "1日ROI", "2日ROI", "3日ROI", "4日ROI", "5日ROI", "6日ROI",
-        "7日ROI", "15日ROI", "30日ROI"
+        "7日ROI", "15日ROI", "30日ROI", "60日ROI"
       ],
       rows.map((row) => [
         row.date, row.keywordId, row.campaignId, row.campaignName, row.impressions,
@@ -300,7 +308,7 @@ export function exportDailyRows(
         row.totalPayUv, row.d1PayUv, row.payCost ?? "", row.vipRevenue,
         row.rechargeRevenue, row.payRevenue, row.totalRevenue, row.roi, row.d1Roi,
         row.d2Roi, row.d3Roi, row.d4Roi, row.d5Roi, row.d6Roi, row.d7Roi,
-        row.d15Roi, row.d30Roi
+        row.d15Roi, row.d30Roi, row.d60Roi
       ])
     );
     return;
@@ -323,7 +331,7 @@ export function exportDailyRows(
     "总重下载",
     "激活",
     "注册",
-    "总成本",
+    "总消耗",
     "单激活成本",
     "单注册成本",
     "付费率",
@@ -353,7 +361,8 @@ export function exportDailyRows(
     "6日ROI",
     "7日ROI",
     "15日ROI",
-    "30日ROI"
+    "30日ROI",
+    "60日ROI"
   ];
   const body = rows.map((row) => [
     row.date,
@@ -402,7 +411,8 @@ export function exportDailyRows(
     row.d6Roi,
     row.d7Roi,
     row.d15Roi,
-    row.d30Roi
+    row.d30Roi,
+    row.d60Roi
   ]);
   downloadCsv(
     `${platformExportPrefix(platform)}-${keyword}-daily-detail.csv`,
@@ -420,7 +430,7 @@ export function exportDailySummaryRows(
     downloadCsv(
       "xhs-daily-roi-summary.csv",
       [
-        "日期", "展示", "点击", "点击率", "激活", "注册", "总成本", "付费UV",
+        "日期", "展示", "点击", "点击率", "激活", "注册", "总消耗", "付费UV",
         "会员收入", "充值收入", "付费收入", "总收益", "总ROI", "1日ROI",
         "2日ROI", "3日ROI", "4日ROI", "5日ROI", "6日ROI", "7日ROI",
         "15日ROI", "30日ROI"
@@ -441,16 +451,16 @@ export function exportDailySummaryRows(
       "harmony-daily-roi-summary.csv",
       [
         "日期", "子任务数", "展示", "点击", "点击率", "下载", "激活", "注册",
-        "总成本", "付费率", "付费UV", "会员收入", "充值收入", "付费收入",
+        "总消耗", "付费率", "付费UV", "会员收入", "充值收入", "付费收入",
         "总收益", "总ROI", "1日ROI", "2日ROI", "3日ROI", "4日ROI",
-        "5日ROI", "6日ROI", "7日ROI", "15日ROI", "30日ROI"
+        "5日ROI", "6日ROI", "7日ROI", "15日ROI", "30日ROI", "60日ROI"
       ],
       rows.map((row) => [
         row.date, row.keywordCount, row.impressions, row.taps, row.ttr, row.installs,
         row.activations, row.registrations, row.cost, row.paymentRate,
         row.totalPayUv, row.vipRevenue, row.rechargeRevenue, row.payRevenue,
         row.totalRevenue, row.roi, row.d1Roi, row.d2Roi, row.d3Roi, row.d4Roi,
-        row.d5Roi, row.d6Roi, row.d7Roi, row.d15Roi, row.d30Roi
+        row.d5Roi, row.d6Roi, row.d7Roi, row.d15Roi, row.d30Roi, row.d60Roi
       ])
     );
     return;
@@ -460,7 +470,15 @@ export function exportDailySummaryRows(
     rows.map((row) => row.date).sort().at(-1) ?? null;
   const retentionPercent = (
     row: DailyCampaignRow,
-    key: "retainUv1d" | "retainUv3d" | "retainUv7d" | "retainUv14d" | "retainUv30d"
+    key:
+      | "retainUv1d"
+      | "retainUv3d"
+      | "retainUv7d"
+      | "retainUv14d"
+      | "retainUv30d"
+      | "retainUv60d"
+      | "retainUv90d"
+      | "retainUv180d"
   ) => {
     if (!isOverallRetentionMature(key, retentionDaysAvailable(row.date, latestRetentionDate))) {
       return "";
@@ -488,7 +506,10 @@ export function exportDailySummaryRows(
     "7日留存",
     "14日留存",
     "30日留存",
-    "总成本",
+    "60日留存",
+    "90日留存",
+    "180日留存",
+    "总消耗",
     "付费率",
     "总充值UV",
     "广告收入",
@@ -505,7 +526,8 @@ export function exportDailySummaryRows(
     "6日ROI",
     "7日ROI",
     "15日ROI",
-    "30日ROI"
+    "30日ROI",
+    "60日ROI"
   ];
   const body = rows.map((row) => [
     row.date,
@@ -526,6 +548,9 @@ export function exportDailySummaryRows(
     retentionPercent(row, "retainUv7d"),
     retentionPercent(row, "retainUv14d"),
     retentionPercent(row, "retainUv30d"),
+    retentionPercent(row, "retainUv60d"),
+    retentionPercent(row, "retainUv90d"),
+    retentionPercent(row, "retainUv180d"),
     row.cost,
     row.paymentRate,
     row.totalPayUv,
@@ -543,7 +568,8 @@ export function exportDailySummaryRows(
     row.d6Roi,
     row.d7Roi,
     row.d15Roi,
-    row.d30Roi
+    row.d30Roi,
+    row.d60Roi
   ]);
   downloadCsv(`${platformExportPrefix(platform)}-daily-roi-summary.csv`, headers, body);
 }

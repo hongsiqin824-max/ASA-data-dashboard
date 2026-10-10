@@ -12,10 +12,14 @@ import {
 } from "../lib/keyword-analysis";
 import {
   isRoiWindowMature,
-  roiDaysAvailable
+  roiDaysAvailable,
+  roiWindowDays,
+  type RoiWindowKey
 } from "../lib/roi-maturity";
 import { keywordDetailHref } from "../lib/route";
 import { keywordEntityOrder, platformUi } from "../lib/platform";
+import { retentionColumns } from "../lib/retention-columns";
+import { extendedRoiColumns } from "../lib/roi-columns";
 import { EmptyRoi, MiniRoi } from "./ui/MiniRoi";
 import { RoiCell } from "./ui/RoiCell";
 import { StatusBadge } from "./ui/StatusBadge";
@@ -23,14 +27,6 @@ import { StatusBadge } from "./ui/StatusBadge";
 function formatOptionalCurrency(value: number | null) {
   return value === null ? "-" : formatCurrency(value);
 }
-
-const RETENTION_COLUMNS = [
-  { day: 1, key: "retainUv1d", label: "D1留存" },
-  { day: 3, key: "retainUv3d", label: "D3留存" },
-  { day: 7, key: "retainUv7d", label: "D7留存" },
-  { day: 14, key: "retainUv14d", label: "D14留存" },
-  { day: 30, key: "retainUv30d", label: "D30留存" }
-] as const;
 
 function renderRetention(
   value: number | null | undefined,
@@ -42,12 +38,13 @@ function renderRetention(
 }
 
 function renderWindowRoi(
-  value: number,
+  value: number | null,
   cost: number,
   key: SortKey,
   availableDays: number | null
 ) {
-  return cost > 0 && isRoiWindowMature(key, availableDays) ? (
+  // value 为 null：40 日及以上档位在非「全部」收益口径下取不到值
+  return value !== null && cost > 0 && isRoiWindowMature(key, availableDays) ? (
     <MiniRoi value={value} />
   ) : (
     <EmptyRoi />
@@ -78,15 +75,7 @@ type SortKey =
   | "activationCost"
   | "registrationCost"
   | "paymentRate"
-  | "d1Roi"
-  | "d2Roi"
-  | "d3Roi"
-  | "d4Roi"
-  | "d5Roi"
-  | "d6Roi"
-  | "d7Roi"
-  | "d15Roi"
-  | "d30Roi"
+  | RoiWindowKey
   | "roi"
   | "adRevenue"
   | "payRevenue"
@@ -124,15 +113,9 @@ function sortValue(
   key: SortKey,
   latestDateMs: number | null
 ): SortValue {
-  if (key === "d1Roi") return roiWindowValue(row, key, latestDateMs) as number | null;
-  if (key === "d2Roi") return roiWindowValue(row, key, latestDateMs) as number | null;
-  if (key === "d3Roi") return roiWindowValue(row, key, latestDateMs) as number | null;
-  if (key === "d4Roi") return roiWindowValue(row, key, latestDateMs) as number | null;
-  if (key === "d5Roi") return roiWindowValue(row, key, latestDateMs) as number | null;
-  if (key === "d6Roi") return roiWindowValue(row, key, latestDateMs) as number | null;
-  if (key === "d7Roi") return roiWindowValue(row, key, latestDateMs) as number | null;
-  if (key === "d15Roi") return roiWindowValue(row, key, latestDateMs) as number | null;
-  if (key === "d30Roi") return roiWindowValue(row, key, latestDateMs) as number | null;
+  if (key in roiWindowDays) {
+    return roiWindowValue(row, key as RoiWindowKey, latestDateMs) as number | null;
+  }
   if (key === "activationCost" || key === "registrationCost") return row[key];
   if (key === "status") return row.status;
   return row[key] as SortValue;
@@ -236,7 +219,9 @@ export function KeywordTable({
   query,
   latestDateMs,
   summaryAvailableDays,
-  onOpen
+  onOpen,
+  showAllRetention = false,
+  showAllRoi = false
 }: {
   rows: KeywordAnalysisRow[];
   summary: KeywordTableSummary;
@@ -244,9 +229,16 @@ export function KeywordTable({
   latestDateMs: number | null;
   summaryAvailableDays: number | null;
   onOpen: (keywordId: string, campaignId: string, adGroupId: string) => void;
+  /** 明细页传 true：展示全部留存档位；列表页保持精简。 */
+  showAllRetention?: boolean;
+  /** 明细页传 true：追加 40 日及以上的 ROI 档位；列表页保持精简。 */
+  showAllRoi?: boolean;
 }) {
   const ui = platformUi(query.platform);
   const showRetention = query.platform === "iOS";
+  const RETENTION_COLUMNS = retentionColumns(showAllRetention);
+  const extendedRoi =
+    showAllRoi && ui.hasExtendedRoiWindows ? extendedRoiColumns() : [];
   const parentFirst = keywordEntityOrder(query.platform)[0] === "parent";
   const [renderLimit, setRenderLimit] = useState(RENDER_BATCH_SIZE);
   const [sort, setSort] = useState<SortState>(null);
@@ -322,7 +314,7 @@ export function KeywordTable({
               )}
               <SortableHeader label="激活" sortKey="activations" sort={sort} onSort={toggleSort} />
               <SortableHeader label="注册" sortKey="registrations" sort={sort} onSort={toggleSort} />
-              <SortableHeader label="成本" sortKey="cost" sort={sort} onSort={toggleSort} />
+              <SortableHeader label="消耗" sortKey="cost" sort={sort} onSort={toggleSort} />
               <SortableHeader label="单激活成本" sortKey="activationCost" sort={sort} onSort={toggleSort} />
               <SortableHeader label="单注册成本" sortKey="registrationCost" sort={sort} onSort={toggleSort} />
               <SortableHeader label="付费率" sortKey="paymentRate" sort={sort} onSort={toggleSort} />
@@ -343,6 +335,16 @@ export function KeywordTable({
               <SortableHeader label="D7 ROI" sortKey="d7Roi" sort={sort} onSort={toggleSort} />
               <SortableHeader label="D15 ROI" sortKey="d15Roi" sort={sort} onSort={toggleSort} />
               <SortableHeader label="D30 ROI" sortKey="d30Roi" sort={sort} onSort={toggleSort} />
+              <SortableHeader label="D60 ROI" sortKey="d60Roi" sort={sort} onSort={toggleSort} />
+              {extendedRoi.map((col) => (
+                <SortableHeader
+                  key={col.key}
+                  label={`${col.label} ROI`}
+                  sortKey={col.key}
+                  sort={sort}
+                  onSort={toggleSort}
+                />
+              ))}
               {ui.hasAdRevenue ? (
                 <>
                   <SortableHeader label="广告收入" sortKey="adRevenue" sort={sort} onSort={toggleSort} />
@@ -427,6 +429,19 @@ export function KeywordTable({
               <td>
                 {renderWindowRoi(summary.d30Roi, summary.cost, "d30Roi", summaryAvailableDays)}
               </td>
+              <td>
+                {renderWindowRoi(summary.d60Roi, summary.cost, "d60Roi", summaryAvailableDays)}
+              </td>
+              {extendedRoi.map((col) => (
+                <td key={col.key}>
+                  {renderWindowRoi(
+                    summary[col.key],
+                    summary.cost,
+                    col.key,
+                    summaryAvailableDays
+                  )}
+                </td>
+              ))}
               {ui.hasAdRevenue ? (
                 <>
                   <td>{formatCurrency(summary.adRevenue)}</td>
@@ -497,6 +512,17 @@ export function KeywordTable({
                 <td>{renderWindowRoi(row.d7Roi, row.cost, "d7Roi", roiDaysAvailable(row.firstDate, latestDateMs))}</td>
                 <td>{renderWindowRoi(row.d15Roi, row.cost, "d15Roi", roiDaysAvailable(row.firstDate, latestDateMs))}</td>
                 <td>{renderWindowRoi(row.d30Roi, row.cost, "d30Roi", roiDaysAvailable(row.firstDate, latestDateMs))}</td>
+                <td>{renderWindowRoi(row.d60Roi, row.cost, "d60Roi", roiDaysAvailable(row.firstDate, latestDateMs))}</td>
+                {extendedRoi.map((col) => (
+                  <td key={col.key}>
+                    {renderWindowRoi(
+                      row[col.key],
+                      row.cost,
+                      col.key,
+                      roiDaysAvailable(row.firstDate, latestDateMs)
+                    )}
+                  </td>
+                ))}
                 {ui.hasAdRevenue ? (
                   <>
                     <td>{formatCurrency(row.adRevenue)}</td>

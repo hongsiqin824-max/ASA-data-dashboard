@@ -23,11 +23,11 @@ export function MetricGrid({
       <Metric
         label="总 ROI"
         value={data && hasKeywordRows ? formatRoi(data.summary.roi) : "--"}
-        trend={hasKeywordRows ? "收益 / 成本" : "暂无真实数据"}
+        trend={hasKeywordRows ? "收益 / 消耗" : "暂无真实数据"}
         icon={<TrendingUp size={19} />}
       />
       <Metric
-        label="投放成本"
+        label="投放消耗"
         value={
           data && hasKeywordRows ? formatCurrency(data.summary.cost) : "--"
         }

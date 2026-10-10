@@ -1,8 +1,9 @@
 export type KeywordStatus = "scaling" | "observe" | "pause" | "new";
 export type DataPlatform = "iOS" | "HarmonyOS" | "Xiaohongshu";
 
-// 成品表中的 1~30 日留存设备数。null 表示该窗口暂无数据或不适用于当前平台，
-// 与真实留存数为 0 明确区分。
+// 成品表中的留存设备数：1~30 日逐日，之后按 10 日步长到 180 日
+// （数仓只建了这些档位，没有 31~39 等中间天）。
+// null 表示该窗口暂无数据或不适用于当前平台，与真实留存数为 0 明确区分。
 export type RetainUvFields = {
   retainUv1d: number | null;
   retainUv2d: number | null;
@@ -34,9 +35,44 @@ export type RetainUvFields = {
   retainUv28d: number | null;
   retainUv29d: number | null;
   retainUv30d: number | null;
+  retainUv40d: number | null;
+  retainUv50d: number | null;
+  retainUv60d: number | null;
+  retainUv70d: number | null;
+  retainUv80d: number | null;
+  retainUv90d: number | null;
+  retainUv100d: number | null;
+  retainUv110d: number | null;
+  retainUv120d: number | null;
+  retainUv130d: number | null;
+  retainUv140d: number | null;
+  retainUv150d: number | null;
+  retainUv160d: number | null;
+  retainUv170d: number | null;
+  retainUv180d: number | null;
 };
 
-export type KeywordRow = RetainUvFields & {
+// 40 日及以上的 ROI 档位。数仓只给了算好的 roi_Nd，没有对应的 revenue 明细，
+// 所以这些档位无法按「仅付费 / 仅广告」口径拆分：
+// 非「全部」口径下取 null，界面显示 "-"，与真实 ROI 为 0 区分。
+export type ExtendedRoiFields = {
+  d40Roi: number | null;
+  d50Roi: number | null;
+  d70Roi: number | null;
+  d80Roi: number | null;
+  d90Roi: number | null;
+  d100Roi: number | null;
+  d110Roi: number | null;
+  d120Roi: number | null;
+  d130Roi: number | null;
+  d140Roi: number | null;
+  d150Roi: number | null;
+  d160Roi: number | null;
+  d170Roi: number | null;
+  d180Roi: number | null;
+};
+
+export type KeywordRow = RetainUvFields & ExtendedRoiFields & {
   dateRange: string;
   firstDate?: string | null;
   lastDate?: string | null;
@@ -94,11 +130,12 @@ export type KeywordRow = RetainUvFields & {
   d7Roi: number;
   d15Roi: number;
   d30Roi: number;
+  d60Roi: number;
   status: KeywordStatus;
 };
 
 // 计划(campaign)汇总行：前端从 KeywordRow 按 campaignId 聚合而来（见 lib/campaign.ts）。
-export type CampaignRow = {
+export type CampaignRow = ExtendedRoiFields & {
   campaignId: string;
   label: string; // 展示名：真实计划名 → 广告组名 → campaignId 回退
   advertiserId?: string;
@@ -135,14 +172,13 @@ export type CampaignRow = {
   d7Roi: number;
   d15Roi: number;
   d30Roi: number;
+  d60Roi: number;
   status: KeywordStatus;
 };
 
 // 计划内「按天」聚合行：某计划下所有关键词每日行按 date 合并（见 lib/campaign.ts）。
-export type DailyCampaignRow = Pick<
-  RetainUvFields,
-  "retainUv1d" | "retainUv3d" | "retainUv7d" | "retainUv14d" | "retainUv30d"
-> & {
+// 日期汇总行带全量留存档位：列表页只展示其中几档，明细页展开全部。
+export type DailyCampaignRow = RetainUvFields & ExtendedRoiFields & {
   date: string;
   keywordCount: number;
   impressions: number;
@@ -174,9 +210,10 @@ export type DailyCampaignRow = Pick<
   d7Roi: number;
   d15Roi: number;
   d30Roi: number;
+  d60Roi: number;
 };
 
-export type DailyKeywordRow = RetainUvFields & {
+export type DailyKeywordRow = RetainUvFields & ExtendedRoiFields & {
   platform: DataPlatform;
   date: string;
   campaignId: string;
@@ -230,6 +267,7 @@ export type DailyKeywordRow = RetainUvFields & {
   d7Roi: number;
   d15Roi: number;
   d30Roi: number;
+  d60Roi: number;
 };
 
 export type DashboardResponse = {

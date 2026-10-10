@@ -1,4 +1,5 @@
-import type { CampaignRow } from "./types";
+import type { CampaignRow, ExtendedRoiFields } from "./types";
+import { aggregateExtendedRoi } from "./roi-columns";
 
 export type CampaignSort =
   | "impact"
@@ -18,7 +19,7 @@ export type CampaignScaleFilter =
   | "spentNoRevenue"
   | "clickLowActivation";
 
-export type CampaignTableSummary = {
+export type CampaignTableSummary = ExtendedRoiFields & {
   campaignCount: number;
   adGroupCount: number;
   keywordCount: number;
@@ -51,6 +52,7 @@ export type CampaignTableSummary = {
   d7Roi: number;
   d15Roi: number;
   d30Roi: number;
+  d60Roi: number;
 };
 
 function activationCost(row: CampaignRow) {
@@ -178,6 +180,8 @@ export function summarizeCampaignRows(rows: CampaignRow[]): CampaignTableSummary
     d6Roi: weightedRoi((row) => row.d6Roi),
     d7Roi: weightedRoi((row) => row.d7Roi),
     d15Roi: weightedRoi((row) => row.d15Roi),
-    d30Roi: weightedRoi((row) => row.d30Roi)
+    d30Roi: weightedRoi((row) => row.d30Roi),
+    d60Roi: weightedRoi((row) => row.d60Roi),
+    ...aggregateExtendedRoi(rows, (row) => row.cost)
   };
 }

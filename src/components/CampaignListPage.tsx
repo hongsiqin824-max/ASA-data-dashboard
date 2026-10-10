@@ -16,6 +16,7 @@ import {
   type KeywordSort
 } from "../lib/keyword-analysis";
 import { latestRoiDateMs, minimumRoiDaysAvailable } from "../lib/roi-maturity";
+import { aggregateExtendedRoi } from "../lib/roi-columns";
 import { platformUi } from "../lib/platform";
 import { filterRowsByPlanSelection } from "../lib/plan-filter";
 import type {
@@ -95,10 +96,50 @@ function summarizeDailyRows(rows: DailyCampaignRow[]): DailyCampaignTableSummary
     activations: sum((row) => row.activations),
     registrations: sum((row) => row.registrations),
     retainUv1d: sumNullable((row) => row.retainUv1d),
+    retainUv2d: sumNullable((row) => row.retainUv2d),
     retainUv3d: sumNullable((row) => row.retainUv3d),
+    retainUv4d: sumNullable((row) => row.retainUv4d),
+    retainUv5d: sumNullable((row) => row.retainUv5d),
+    retainUv6d: sumNullable((row) => row.retainUv6d),
     retainUv7d: sumNullable((row) => row.retainUv7d),
+    retainUv8d: sumNullable((row) => row.retainUv8d),
+    retainUv9d: sumNullable((row) => row.retainUv9d),
+    retainUv10d: sumNullable((row) => row.retainUv10d),
+    retainUv11d: sumNullable((row) => row.retainUv11d),
+    retainUv12d: sumNullable((row) => row.retainUv12d),
+    retainUv13d: sumNullable((row) => row.retainUv13d),
     retainUv14d: sumNullable((row) => row.retainUv14d),
+    retainUv15d: sumNullable((row) => row.retainUv15d),
+    retainUv16d: sumNullable((row) => row.retainUv16d),
+    retainUv17d: sumNullable((row) => row.retainUv17d),
+    retainUv18d: sumNullable((row) => row.retainUv18d),
+    retainUv19d: sumNullable((row) => row.retainUv19d),
+    retainUv20d: sumNullable((row) => row.retainUv20d),
+    retainUv21d: sumNullable((row) => row.retainUv21d),
+    retainUv22d: sumNullable((row) => row.retainUv22d),
+    retainUv23d: sumNullable((row) => row.retainUv23d),
+    retainUv24d: sumNullable((row) => row.retainUv24d),
+    retainUv25d: sumNullable((row) => row.retainUv25d),
+    retainUv26d: sumNullable((row) => row.retainUv26d),
+    retainUv27d: sumNullable((row) => row.retainUv27d),
+    retainUv28d: sumNullable((row) => row.retainUv28d),
+    retainUv29d: sumNullable((row) => row.retainUv29d),
     retainUv30d: sumNullable((row) => row.retainUv30d),
+    retainUv40d: sumNullable((row) => row.retainUv40d),
+    retainUv50d: sumNullable((row) => row.retainUv50d),
+    retainUv60d: sumNullable((row) => row.retainUv60d),
+    retainUv70d: sumNullable((row) => row.retainUv70d),
+    retainUv80d: sumNullable((row) => row.retainUv80d),
+    retainUv90d: sumNullable((row) => row.retainUv90d),
+    retainUv100d: sumNullable((row) => row.retainUv100d),
+    retainUv110d: sumNullable((row) => row.retainUv110d),
+    retainUv120d: sumNullable((row) => row.retainUv120d),
+    retainUv130d: sumNullable((row) => row.retainUv130d),
+    retainUv140d: sumNullable((row) => row.retainUv140d),
+    retainUv150d: sumNullable((row) => row.retainUv150d),
+    retainUv160d: sumNullable((row) => row.retainUv160d),
+    retainUv170d: sumNullable((row) => row.retainUv170d),
+    retainUv180d: sumNullable((row) => row.retainUv180d),
     cost: round(cost),
     totalPayUv,
     paymentRate: installs > 0 ? round(totalPayUv / installs, 4) : 0,
@@ -116,7 +157,9 @@ function summarizeDailyRows(rows: DailyCampaignRow[]): DailyCampaignTableSummary
     d6Roi: weightedRoi((row) => row.d6Roi),
     d7Roi: weightedRoi((row) => row.d7Roi),
     d15Roi: weightedRoi((row) => row.d15Roi),
-    d30Roi: weightedRoi((row) => row.d30Roi)
+    d30Roi: weightedRoi((row) => row.d30Roi),
+    d60Roi: weightedRoi((row) => row.d60Roi),
+    ...aggregateExtendedRoi(rows, (row) => row.cost)
   };
 }
 
