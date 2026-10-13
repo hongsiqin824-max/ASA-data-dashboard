@@ -1,6 +1,41 @@
 export type KeywordStatus = "scaling" | "observe" | "pause" | "new";
 export type DataPlatform = "iOS" | "HarmonyOS" | "Xiaohongshu";
 
+// AI 出价建议：针对单个关键词，由大模型基于历史投放数据给出。
+// action 对应 ASA 出价工具文档的四类场景：up(小幅提价) / down(降价控本) /
+// pause(暂停或大幅降价) / hold(样本不足维持观察)。
+export type KeywordAdviceAction = "up" | "down" | "pause" | "hold";
+
+export type KeywordAdvice = {
+  campaignId: string;
+  adGroupId: string;
+  keywordId: string;
+  // AI 推荐出价（规则兜底后的最终合规值）；无法判断时为 null。
+  recommendedBid: number | null;
+  // 最终合规动作（可能被业务规则覆盖）。
+  action: KeywordAdviceAction;
+  // 调价理由：分点问题 + 动作，≤200 字，可含换行。
+  reason: string;
+  // 模型原始动作（规则兜底前）；与 action 不同表示被规则覆盖过。
+  rawAction: KeywordAdviceAction;
+  // 模型原始出价（规则兜底前）；与 recommendedBid 不同表示被夹逼/改写过。
+  rawRecommendedBid: number | null;
+  // 业务规则修正说明：命中哪条兜底规则、为什么、改成了什么，可多条。为空表示未修正。
+  adjustments: string[];
+};
+
+// 账户级优化诊断：跨关键词/跨计划的实战诊断（抢同词、否定词、Search Match 回收等）。
+export type AccountDiagnosisItem = {
+  // 诊断标题，如「足球 app（球迷需求-精准）」。
+  title: string;
+  // 关键指标摘要，如「花费 ¥22,320 | ROI 0.106」；可为空。
+  summary: string;
+  // 问题分点。
+  points: string[];
+  // 落地动作。
+  action: string;
+};
+
 // 成品表中的留存设备数：1~30 日逐日，之后按 10 日步长到 180 日
 // （数仓只建了这些档位，没有 31~39 等中间天）。
 // null 表示该窗口暂无数据或不适用于当前平台，与真实留存数为 0 明确区分。
@@ -77,6 +112,9 @@ export type KeywordRow = RetainUvFields & ExtendedRoiFields & {
   firstDate?: string | null;
   lastDate?: string | null;
   activeDays?: number;
+  // 全历史投放天数（跨查询区间，近 N 天回看内 COUNT(DISTINCT 活跃日)）。
+  // 用于 AI 建议的「需 7 天以上历史」门槛，避免近 7 天默认区间下 activeDays 恒不足。
+  historyActiveDays?: number;
   campaignId: string;
   campaignName: string;
   advertiserId?: string;
@@ -100,6 +138,8 @@ export type KeywordRow = RetainUvFields & ExtendedRoiFields & {
   cost: number;
   cpt: number;
   cpa: number;
+  // ASA 实际出价：由数仓补充字段提供；暂无数据时为 null，界面显示 "-"。
+  currentBid?: number | null;
   retentionD2: number | null;
   retentionD3: number | null;
   retentionD7: number | null;

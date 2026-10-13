@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
-import type { QueryParams } from "../lib/api";
+import type { AdviceKeywordInput, QueryParams } from "../lib/api";
+import { fetchKeywordAdvice } from "../lib/api";
 import {
   compareCampaignRows,
   filterCampaignRowsByScale,
@@ -20,19 +21,27 @@ import { aggregateExtendedRoi } from "../lib/roi-columns";
 import { platformUi } from "../lib/platform";
 import { filterRowsByPlanSelection } from "../lib/plan-filter";
 import type {
+  AccountDiagnosisItem,
   CampaignRow,
   DailyCampaignRow,
   DashboardResponse,
+  KeywordAdvice,
   KeywordRow
 } from "../lib/types";
 import { CampaignTable } from "./CampaignTable";
 import { DailyCampaignTable } from "./DailyCampaignTable";
 import type { DailyCampaignTableSummary } from "./DailyCampaignTable";
 import { KeywordTable } from "./KeywordTable";
+import { AdviceTable, adviceKey } from "./AdviceTable";
 import { Segmented } from "./ui/Segmented";
 import { PlanMultiSelect, type PlanOption, type PlanSelection } from "./ui/PlanMultiSelect";
+import {
+  ADVICE_HEAD_LIMIT,
+  selectCostRows,
+  selectScene3Rows
+} from "../lib/advice-scope";
 
-export type HomeView = "keywords" | "campaigns" | "daily";
+export type HomeView = "keywords" | "campaigns" | "daily" | "advice";
 export type KeywordListScope =
   | { type: "all" }
   | { type: "campaign"; campaignId: string; label: string }
@@ -41,6 +50,11 @@ type RoiFilter = "all" | "high" | "middle" | "low";
 
 const emptyKeywordRows: DashboardResponse["rows"] = [];
 const emptyDailyRows: DailyCampaignRow[] = [];
+
+// 建议 tab 全量「生成全部」时每批词数：批越小单批越快。
+const FULL_BATCH_SIZE = 8;
+// 全量分批的并发度：浏览器对同一后端 HTTP/1.1 同时最多 6 个请求，取 6 吃满。
+const FULL_CONCURRENCY = 6;
 
 function round(value: number, digits = 2) {
   const base = 10 ** digits;
@@ -245,6 +259,19 @@ export function CampaignListPage({
   const [campaignScaleFilter, setCampaignScaleFilter] =
     useState<CampaignScaleFilter>("all");
 
+  // AI 出价建议（仅 iOS）：按 keyword scope key 存每个关键词的建议。
+  const [advices, setAdvices] = useState<Map<string, KeywordAdvice>>(new Map());
+  const [diagnosis, setDiagnosis] = useState<AccountDiagnosisItem[]>([]);
+  const [adviceLoading, setAdviceLoading] = useState(false);
+  const [adviceError, setAdviceError] = useState("");
+  // 全量分批生成（点「生成全部」触发）的进行态与进度。
+  const [adviceFullLoading, setAdviceFullLoading] = useState(false);
+  const [adviceProgress, setAdviceProgress] = useState({ done: 0, total: 0 });
+  // 当前 advices 对应的关键词集合指纹；用于判断条件是否变化、避免重复生成。
+  const adviceLoadedSigRef = useRef("");
+  // 请求序号：条件变化中途返回的旧响应作废，避免覆盖最新结果。
+  const adviceReqIdRef = useRef(0);
+
   // 计划搜索：纯前端按 计划名 / 计划ID 过滤当前已加载的计划（不触发重新查库）
   const [search, setSearch] = useState("");
   const [keywordSearch, setKeywordSearch] = useState("");
@@ -338,19 +365,218 @@ export function CampaignListPage({
     : dailyQ || dailyRoiFilter !== "all"
       ? `当前筛选命中 ${formatNumber(visibleDailyRows.length)} / ${formatNumber(dailyRows.length)} 天`
       : `当前区间共 ${formatNumber(dailyRows.length)} 天数据，按日核验成本、收益、ROI 与转化字段`;
+  const adviceEnabled = query.platform === "iOS";
+  const showingAdvice = adviceEnabled && view === "advice";
   const showingKeywords = ui.hasChildEntity && view === "keywords";
-  const showingCampaigns = !ui.hasChildEntity || view === "campaigns";
+  const showingCampaigns = !ui.hasChildEntity || (view === "campaigns" && !showingAdvice);
   const showingDaily = view === "daily";
-  const title = showingKeywords
-    ? ui.childEntity
-    : showingCampaigns
-      ? ui.parentEntity
-      : "日期";
-  const subtitle = showingKeywords
-    ? keywordSubtitle
-    : showingCampaigns
-      ? campaignSubtitle
-      : dailySubtitle;
+
+  // 全量「有消耗」关键词（cost>0），按消耗降序。用于展示与「生成全部」。
+  const allCostRows = useMemo(
+    () => selectCostRows(visibleKeywords),
+    [visibleKeywords]
+  );
+  // 头部批：消耗最高的前 N，进入 tab 自动生成。
+  const headRows = useMemo(
+    () => allCostRows.slice(0, ADVICE_HEAD_LIMIT),
+    [allCostRows]
+  );
+  // 场景三池：曝光≥50 且消耗=0 且转化=0 的无效投放词，单独计额度。
+  const scene3Rows = useMemo(
+    () => selectScene3Rows(visibleKeywords),
+    [visibleKeywords]
+  );
+  const scene3KeySet = useMemo(
+    () => new Set(scene3Rows.map((row) => adviceKey(row))),
+    [scene3Rows]
+  );
+  // 表格展示的完整集合：全量有消耗词在前、场景三词在后。
+  const adviceRows = useMemo(
+    () => [...allCostRows, ...scene3Rows],
+    [allCostRows, scene3Rows]
+  );
+  // 还未生成建议、可通过「生成全部」补齐的有消耗词数量（排除已自动生成的头部）。
+  const remainingCostCount = Math.max(allCostRows.length - headRows.length, 0);
+
+  // 自动触发指纹：只覆盖头部批 + 场景三（自动只生成这部分）。
+  const adviceSignature = useMemo(
+    () =>
+      [...headRows, ...scene3Rows]
+        .map((row) =>
+          [
+            row.keywordId,
+            row.currentBid ?? "",
+            row.cost,
+            row.taps,
+            row.installs,
+            row.cpt,
+            row.cpa,
+            row.roi,
+            row.d7Roi,
+            row.d30Roi,
+            row.activeDays ?? 0,
+            scene3KeySet.has(adviceKey(row)) ? 1 : 0
+          ].join(":")
+        )
+        .join("|"),
+    [headRows, scene3Rows, scene3KeySet]
+  );
+
+  function buildAdviceInput(row: KeywordRow): AdviceKeywordInput {
+    return {
+      campaignId: row.campaignId,
+      adGroupId: row.adGroupId,
+      keywordId: row.keywordId,
+      keyword: row.keyword,
+      campaignName: row.campaignName,
+      currentBid: row.currentBid ?? null,
+      cpt: row.cpt,
+      cpa: row.cpa,
+      cost: row.cost,
+      impressions: row.impressions,
+      taps: row.taps,
+      installs: row.installs,
+      activeDays: row.historyActiveDays ?? row.activeDays ?? 0,
+      roi: row.roi,
+      d1Roi: row.d1Roi,
+      d3Roi: row.d3Roi,
+      d7Roi: row.d7Roi,
+      d30Roi: row.d30Roi,
+      scene3: scene3KeySet.has(adviceKey(row))
+    };
+  }
+
+  // 把若干批（每批一组关键词行）并发跑完；批 0 可带账户级诊断，其余只出逐词建议。
+  // reqId 作废机制：条件变化时正在进行的批次结果丢弃。
+  async function runAdviceBatches(
+    batches: KeywordRow[][],
+    opts: {
+      force: boolean;
+      reset: boolean;
+      track: boolean;
+      concurrency: number;
+      diagnosisOnFirst: boolean;
+    }
+  ) {
+    const nonEmpty = batches.filter((batch) => batch.length > 0);
+    if (nonEmpty.length === 0) return;
+    const reqId = adviceReqIdRef.current + 1;
+    adviceReqIdRef.current = reqId;
+    setAdviceError("");
+    if (opts.reset) {
+      setAdvices(new Map());
+      setDiagnosis([]);
+    }
+    if (opts.track) {
+      setAdviceFullLoading(true);
+      setAdviceProgress({ done: 0, total: nonEmpty.length });
+    } else {
+      setAdviceLoading(true);
+    }
+
+    let done = 0;
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < nonEmpty.length) {
+        const index = cursor++;
+        const batch = nonEmpty[index];
+        try {
+          const result = await fetchKeywordAdvice(
+            query.platform,
+            batch.map(buildAdviceInput),
+            {
+              forceRefresh: opts.force,
+              withDiagnosis: opts.diagnosisOnFirst && index === 0
+            }
+          );
+          if (reqId !== adviceReqIdRef.current) return;
+          setAdvices((prev) => {
+            const next = new Map(prev);
+            result.advices.forEach((item) => next.set(adviceKey(item), item));
+            return next;
+          });
+          if (opts.diagnosisOnFirst && index === 0 && result.diagnosis.length > 0) {
+            setDiagnosis(result.diagnosis);
+          }
+        } catch (err) {
+          if (reqId !== adviceReqIdRef.current) return;
+          setAdviceError(err instanceof Error ? err.message : "AI 建议生成失败");
+        } finally {
+          if (reqId === adviceReqIdRef.current) {
+            done += 1;
+            if (opts.track) setAdviceProgress({ done, total: nonEmpty.length });
+          }
+        }
+      }
+    };
+
+    try {
+      await Promise.all(
+        Array.from({ length: Math.min(opts.concurrency, nonEmpty.length) }, worker)
+      );
+      if (reqId === adviceReqIdRef.current) adviceLoadedSigRef.current = adviceSignature;
+    } finally {
+      if (reqId === adviceReqIdRef.current) {
+        setAdviceLoading(false);
+        setAdviceFullLoading(false);
+      }
+    }
+  }
+
+  // 头部自动：头部批（带诊断）+ 场景三批，小并发即可。
+  function runHeadAdvice(force: boolean) {
+    void runAdviceBatches([headRows, scene3Rows], {
+      force,
+      reset: true,
+      track: false,
+      concurrency: 2,
+      diagnosisOnFirst: true
+    });
+  }
+
+  // 生成全部：所有有消耗词按小批拆分 + 场景三批，高并发跑完（诊断沿用头部批的结果）。
+  function runAllAdvice() {
+    const batches: KeywordRow[][] = [];
+    for (let i = 0; i < allCostRows.length; i += FULL_BATCH_SIZE) {
+      batches.push(allCostRows.slice(i, i + FULL_BATCH_SIZE));
+    }
+    batches.push(scene3Rows);
+    void runAdviceBatches(batches, {
+      force: false,
+      reset: false,
+      track: true,
+      concurrency: FULL_CONCURRENCY,
+      diagnosisOnFirst: false
+    });
+  }
+
+  // 进入「建议」tab 自动生成头部；条件变化后自动重算（防抖 500ms）。
+  // 同条件已生成则不重复调用；命中后端缓存会很快返回。
+  useEffect(() => {
+    if (!showingAdvice || headRows.length + scene3Rows.length === 0) return;
+    if (adviceLoadedSigRef.current === adviceSignature) return;
+    const timer = window.setTimeout(() => {
+      runHeadAdvice(false);
+    }, 500);
+    return () => window.clearTimeout(timer);
+    // runHeadAdvice 读取的是最新渲染闭包，无需进依赖；仅按触发条件重跑。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showingAdvice, adviceSignature, adviceRows.length]);
+
+  const title = showingAdvice
+    ? "AI 出价建议"
+    : showingKeywords
+      ? ui.childEntity
+      : showingCampaigns
+        ? ui.parentEntity
+        : "日期";
+  const subtitle = showingAdvice
+    ? `有消耗词共 ${formatNumber(allCostRows.length)} 个（已出建议 ${formatNumber(advices.size)} 个）${scene3Rows.length > 0 ? `，含场景三(曝光≥50 零消耗) ${formatNumber(scene3Rows.length)} 个` : ""}`
+    : showingKeywords
+      ? keywordSubtitle
+      : showingCampaigns
+        ? campaignSubtitle
+        : dailySubtitle;
 
   return (
     <>
@@ -369,7 +595,9 @@ export function CampaignListPage({
                     ? "daily"
                     : value === "campaigns"
                       ? "campaigns"
-                      : "keywords";
+                      : value === "advice"
+                        ? "advice"
+                        : "keywords";
                 onViewChange(nextView);
               }}
               options={
@@ -377,7 +605,10 @@ export function CampaignListPage({
                   ? [
                       { value: "keywords", label: ui.childEntity },
                       { value: "campaigns", label: ui.parentEntity },
-                      { value: "daily", label: "日期" }
+                      { value: "daily", label: "日期" },
+                      ...(adviceEnabled
+                        ? [{ value: "advice", label: "建议" }]
+                        : [])
                     ]
                   : [
                       { value: "campaigns", label: ui.parentEntity },
@@ -558,7 +789,21 @@ export function CampaignListPage({
             ) : null}
           </div>
         </div>
-        {showingKeywords ? (
+        {showingAdvice ? (
+          <AdviceTable
+            rows={adviceRows}
+            advices={advices}
+            diagnosis={diagnosis}
+            scene3Keys={scene3KeySet}
+            loading={adviceLoading}
+            fullLoading={adviceFullLoading}
+            progress={adviceProgress}
+            remainingCount={remainingCostCount}
+            error={adviceError}
+            onGenerate={() => runHeadAdvice(true)}
+            onGenerateAll={runAllAdvice}
+          />
+        ) : showingKeywords ? (
           <KeywordTable
             rows={visibleKeywords}
             summary={keywordSummary}

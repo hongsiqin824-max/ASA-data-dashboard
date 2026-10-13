@@ -6,6 +6,9 @@ dist/
 *.log
 .DS_Store
 
+# AI 出价建议持久化缓存（服务器本地运行时生成，勿用本地缓存覆盖线上）
+.cache/
+
 # 个人本地上下文与开发过程记录
 PROJECT_CONTEXT.md
 docs/superpowers/

@@ -12,6 +12,7 @@
     "preview": "vite preview --host 127.0.0.1",
     "lint": "eslint .",
     "test": "tsx --test tests/*.test.ts",
+    "pregenerate-advice": "tsx server/pregenerate-advice.ts",
     "check:platform-schema": "tsx server/check-platform-schema.ts"
   },
   "dependencies": {

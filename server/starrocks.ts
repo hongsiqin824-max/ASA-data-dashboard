@@ -127,6 +127,72 @@ function mapExtendedRoiFields(
   return fields as ExtendedRoiFields;
 }
 
+// iOS 出价明细表（每日全量快照，含 bid_amount 真实出价）。库是 dwd 不是 ads。
+const IOS_BID_TABLE =
+  process.env.ASA_DB_TABLE_IOS_BID ??
+  "hive.dwd.dwd_ad_asa_keyword_report_di";
+
+// 「当前出价」取该词最新分区 day=MAX(day) 的 bid_amount。
+// 该表是每日全量快照，在投词最新分区必有记录；停投词取不到为 NULL（显示「-」）。
+// 仅 iOS 有此表，其它平台直接返回 NULL。
+//
+// 分区裁剪：必须用常量下界 day >= '${since}' 把分区框住（外层 + 子查询都要加），
+// 否则 day = (SELECT MAX(day)) 是运行时动态值、无法静态裁剪，会全表扫所有分区、随时间线性变慢。
+// 每日全量快照下回看 7 天足够覆盖最新分区；可用 ASA_ADVICE_BID_LOOKBACK_DAYS 调大以容忍更长的数仓延迟。
+const ADVICE_BID_LOOKBACK_DAYS = Number(
+  process.env.ASA_ADVICE_BID_LOOKBACK_DAYS ?? 7
+);
+
+function bidJoinClause(platform: DataPlatform): string {
+  if (platform !== "iOS") return "";
+  const since = beijingCompactDate(-ADVICE_BID_LOOKBACK_DAYS);
+  return `LEFT JOIN (
+      SELECT campaign_id, ad_group_id, keyword_id, bid_amount
+      FROM ${IOS_BID_TABLE}
+      WHERE day >= '${since}'
+        AND day = (SELECT MAX(day) FROM ${IOS_BID_TABLE} WHERE day >= '${since}')
+    ) bid
+      ON CAST(t.campaign_id AS VARCHAR) = CAST(bid.campaign_id AS VARCHAR)
+     AND CAST(t.ad_group_id AS VARCHAR) = CAST(bid.ad_group_id AS VARCHAR)
+     AND CAST(t.keyword_id AS VARCHAR) = CAST(bid.keyword_id AS VARCHAR)`;
+}
+
+// 聚合口径：同一词在 join 后各日明细行对应同一条最新出价，用 MAX 取出即可。
+function bidSelect(platform: DataPlatform): string {
+  return platform === "iOS"
+    ? "MAX(bid.bid_amount) AS current_bid"
+    : "NULL AS current_bid";
+}
+
+// AI 建议「需 7 天以上历史」门槛用：该词的全历史投放天数（跨查询区间）。
+// 近 N 天回看做分区裁剪，避免全表扫描拖慢列表查询；默认 365 天足够判断「是否投够 7 天」。
+// 不复用区间内 active_days：默认近 7 天区间最多只有 5 天数据，会把所有词误判为历史不足。
+const ADVICE_HISTORY_LOOKBACK_DAYS = Number(
+  process.env.ASA_ADVICE_HISTORY_LOOKBACK_DAYS ?? 365
+);
+
+function historyActiveDaysJoin(platform: DataPlatform, table: string): string {
+  if (platform !== "iOS") return "";
+  const since = beijingCompactDate(-ADVICE_HISTORY_LOOKBACK_DAYS);
+  return `LEFT JOIN (
+      SELECT campaign_id, ad_group_id, keyword_id,
+             COUNT(DISTINCT day) AS history_active_days
+      FROM ${table}
+      WHERE day >= '${since}'
+        AND (spend > 0 OR total_installs > 0 OR new_user_cnt > 0 OR new_register_cnt > 0)
+      GROUP BY campaign_id, ad_group_id, keyword_id
+    ) hist
+      ON CAST(t.campaign_id AS VARCHAR) = CAST(hist.campaign_id AS VARCHAR)
+     AND CAST(t.ad_group_id AS VARCHAR) = CAST(hist.ad_group_id AS VARCHAR)
+     AND CAST(t.keyword_id AS VARCHAR) = CAST(hist.keyword_id AS VARCHAR)`;
+}
+
+function historyActiveDaysSelect(platform: DataPlatform): string {
+  return platform === "iOS"
+    ? "MAX(hist.history_active_days) AS history_active_days"
+    : "NULL AS history_active_days";
+}
+
 // 按总 ROI 阈值自动分层：>=100% 高 ROI / 30%~100% 中 ROI / <30% 低 ROI
 function statusFromRoi(roi: number): KeywordRow["status"] {
   if (roi >= 1) return "scaling";
@@ -323,8 +389,12 @@ async function fetchSummaryRows(params: LiveQueryParams): Promise<KeywordRow[]> 
       COUNT(DISTINCT CASE
         WHEN t.spend > 0 OR t.total_installs > 0 OR t.new_user_cnt > 0 OR t.new_register_cnt > 0
         THEN t.day
-      END) AS active_days
+      END) AS active_days,
+      ${bidSelect(params.platform)},
+      ${historyActiveDaysSelect(params.platform)}
     FROM ${table} t
+    ${bidJoinClause(params.platform)}
+    ${historyActiveDaysJoin(params.platform, table)}
     WHERE ${where}
     GROUP BY t.campaign_id, t.ad_group_id, t.keyword_id
     ORDER BY spend DESC`;
@@ -369,6 +439,9 @@ function mapSummaryRow(
     firstDate: dbDay(r.first_active_day),
     lastDate: dbDay(r.last_active_day),
     activeDays: num(r.active_days),
+    // 全历史投放天数（iOS 才算；其它平台 NULL 时回退到区间内 active_days）。
+    historyActiveDays:
+      nullableNum(r.history_active_days) ?? num(r.active_days),
     campaignId: String(r.campaign_id ?? ""),
     campaignName: String(r.campaign_name ?? ""),
     advertiserId: String(r.advertiser_id ?? ""),
@@ -392,6 +465,8 @@ function mapSummaryRow(
     cost,
     cpt: taps > 0 ? round(cost / taps) : 0,
     cpa: installs > 0 ? round(cost / installs) : 0,
+    // 当前出价：数仓补充 current_bid 列后自动带出；暂无该列时为 null。
+    currentBid: nullableNum(r.current_bid),
     retentionD2: null,
     retentionD3: null,
     retentionD7: null,

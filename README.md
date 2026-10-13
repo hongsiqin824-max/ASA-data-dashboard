@@ -46,6 +46,20 @@ ASA_DB_TABLE_XHS
 ASA_BASE_URL
 ASA_HOST
 API_PORT
+
+# AI 出价建议（仅 iOS，必须配置，否则「建议」tab 报未配置大模型）
+LLM_API_KEY
+LLM_BASE_URL          # OpenAI 兼容网关，如 https://ai.flashapi.top
+LLM_MODEL             # 如 claude-opus-4
+LLM_MAX_TOKENS        # 可选，默认 8192
+
+# AI 出价建议缓存 / 预生成（均可选，有默认值）
+ASA_DB_TABLE_IOS_BID         # iOS 出价明细表，默认 hive.dwd.dwd_ad_asa_keyword_report_di
+ASA_ADVICE_CACHE_FILE        # 持久化缓存文件，默认 ./.cache/advice-cache.json
+ASA_ADVICE_CACHE_MINUTES     # 缓存 TTL，默认 360（6 小时）
+ASA_ADVICE_CACHE_MAX_ITEMS   # 缓存最大条目，默认 20000
+ASA_ADVICE_PREGEN_BATCH      # 预生成每批词数，默认 8
+ASA_ADVICE_PREGEN_CONCURRENCY# 预生成并发批数，默认 6
 ```
 
 ## 数据源
@@ -75,3 +89,26 @@ pm2 restart asa-roi --update-env
 ```
 
 同步源码时必须使用仓库内的 `.deployignore` 排除清单，避免覆盖服务器 `.env.local`，也避免上传依赖、构建产物、个人本地上下文和开发过程记录。
+
+## AI 出价建议预生成（可选但推荐）
+
+AI 建议实时逐词调用大模型，首次生成较慢。为让用户进页面即秒开，提供预生成脚本：
+按前端默认区间（滚动近 7 天）自查数仓、对全部 iOS 有消耗词 + 场景三词分批生成建议，
+写入持久化缓存（`./.cache/advice-cache.json`，`pm2 restart` 不丢；预生成进程写盘后
+web 进程会按文件 mtime 自动合并读到）。
+
+手动执行：
+
+```bash
+npm run pregenerate-advice
+```
+
+定时执行（每天数仓出数后跑一次，用 pm2 cron 或系统 crontab，与 web 进程隔离）。
+例如系统 crontab 每天 08:30（北京时间）：
+
+```cron
+30 8 * * * cd /path/to/asa && npm run pregenerate-advice >> .cache/pregenerate.log 2>&1
+```
+
+注意：预生成必须和前端默认区间一致才能命中缓存，脚本已复用同一套「近 7 天 + 有消耗词
+筛选 + 场景三识别」逻辑（`src/lib/advice-scope.ts`），请勿单独修改其中一端。

@@ -28,6 +28,8 @@ import {
   readDashboardServerCache,
   writeDashboardServerCache
 } from "./dashboard-cache";
+import { generateKeywordAdvice, type AdviceKeywordInput } from "./advice";
+import { isLlmConfigured } from "./llm";
 
 const app = express();
 const port = Number(process.env.API_PORT ?? 4173);
@@ -339,6 +341,56 @@ app.get("/api/asa/keyword-roi/daily", async (req, res) => {
     res.status(500).json({
       error: `${source.label} 数仓读取失败：${message}。请确认已开启飞连 VPN，且数据库账号对该表有查询权限。`
     });
+  }
+});
+
+app.get("/api/asa/keyword-advice/config", (_req, res) => {
+  res.json({ enabled: isLlmConfigured() });
+});
+
+// AI 出价建议：仅 iOS。前端把当前筛选后的关键词指标传上来，交给大模型逐词生成。
+app.post("/api/asa/keyword-advice", async (req, res) => {
+  const platform = parseDataPlatform(req.body?.platform);
+  if (!platform) {
+    res.status(400).json({ error: SUPPORTED_PLATFORM_MESSAGE });
+    return;
+  }
+  if (platform !== "iOS") {
+    res.status(400).json({ error: "AI 出价建议目前仅支持 iOS" });
+    return;
+  }
+  if (!isLlmConfigured()) {
+    res.status(503).json({
+      error: "未配置大模型，请在 .env.local 设置 LLM_API_KEY / LLM_BASE_URL / LLM_MODEL"
+    });
+    return;
+  }
+
+  const keywords = Array.isArray(req.body?.keywords)
+    ? (req.body.keywords as AdviceKeywordInput[])
+    : [];
+  if (keywords.length === 0) {
+    res.json({ platform, advices: [], diagnosis: [], cached: false });
+    return;
+  }
+
+  const forceRefresh = req.body?.forceRefresh === true;
+  const withDiagnosis = req.body?.withDiagnosis !== false;
+
+  try {
+    const result = await generateKeywordAdvice(platform, keywords, {
+      forceRefresh,
+      withDiagnosis
+    });
+    res.json({
+      platform,
+      advices: result.advices,
+      diagnosis: result.diagnosis,
+      cached: result.cached
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "未知错误";
+    res.status(500).json({ error: `AI 出价建议生成失败：${message}` });
   }
 });
 

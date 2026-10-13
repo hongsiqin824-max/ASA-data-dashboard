@@ -15,6 +15,9 @@ dist
 *.log
 .DS_Store
 
+# AI 出价建议持久化缓存（运行时生成，勿提交）
+.cache/
+
 # 部署产物
 *.zip
 *.tar.gz

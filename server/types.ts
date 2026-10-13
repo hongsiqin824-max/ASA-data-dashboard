@@ -6,6 +6,9 @@ export type {
   DashboardResponse,
   ExtendedRoiFields,
   KeywordRow,
+  KeywordAdvice,
+  KeywordAdviceAction,
+  AccountDiagnosisItem,
   KeywordStatus,
   RetainUvFields
 } from "../src/lib/types";
