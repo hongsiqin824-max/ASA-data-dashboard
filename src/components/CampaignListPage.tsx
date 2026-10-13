@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import type { AdviceKeywordInput, QueryParams } from "../lib/api";
 import { fetchKeywordAdvice } from "../lib/api";
+import { initialQuery } from "../lib/route";
 import {
   compareCampaignRows,
   filterCampaignRowsByScale,
@@ -395,8 +396,21 @@ export function CampaignListPage({
     () => [...allCostRows, ...scene3Rows],
     [allCostRows, scene3Rows]
   );
-  // 还未生成建议、可通过「生成全部」补齐的有消耗词数量（排除已自动生成的头部）。
-  const remainingCostCount = Math.max(allCostRows.length - headRows.length, 0);
+  // 当前是否正是「每天预生成」覆盖的范围（默认滚动近 7 天 + 全部收益口径）。
+  // 命中时进入页面自动全量显示（走缓存、秒出）；否则仅自动头部，避免误触发大量现算。
+  const isPregeneratedScope =
+    query.startDate === initialQuery.startDate &&
+    query.endDate === initialQuery.endDate &&
+    query.revenueMode === initialQuery.revenueMode;
+  // 还未生成建议、可通过「生成全部」补齐的有消耗词数量（按实际已出建议动态计算）。
+  const remainingCostCount = useMemo(
+    () =>
+      allCostRows.reduce(
+        (count, row) => (advices.has(adviceKey(row)) ? count : count + 1),
+        0
+      ),
+    [allCostRows, advices]
+  );
 
   // 自动触发指纹：只覆盖头部批 + 场景三（自动只生成这部分）。
   const adviceSignature = useMemo(
@@ -550,16 +564,36 @@ export function CampaignListPage({
     });
   }
 
-  // 进入「建议」tab 自动生成头部；条件变化后自动重算（防抖 500ms）。
+  // 默认近 7 天区间自动全量：头部批（带账户级诊断）+ 其余有消耗词小批 + 场景三批。
+  // 分批方式与预生成脚本一致，命中缓存时可秒出全部。
+  function runFullAdvice(force: boolean) {
+    const batches: KeywordRow[][] = [headRows];
+    const restRows = allCostRows.slice(headRows.length);
+    for (let i = 0; i < restRows.length; i += FULL_BATCH_SIZE) {
+      batches.push(restRows.slice(i, i + FULL_BATCH_SIZE));
+    }
+    batches.push(scene3Rows);
+    void runAdviceBatches(batches, {
+      force,
+      reset: true,
+      track: true,
+      concurrency: FULL_CONCURRENCY,
+      diagnosisOnFirst: true
+    });
+  }
+
+  // 进入「建议」tab 自动生成；条件变化后自动重算（防抖 500ms）。
+  // 默认近 7 天区间（预生成已覆盖）自动全量显示；自定义区间仅自动头部，避免大量现算。
   // 同条件已生成则不重复调用；命中后端缓存会很快返回。
   useEffect(() => {
     if (!showingAdvice || headRows.length + scene3Rows.length === 0) return;
     if (adviceLoadedSigRef.current === adviceSignature) return;
     const timer = window.setTimeout(() => {
-      runHeadAdvice(false);
+      if (isPregeneratedScope) runFullAdvice(false);
+      else runHeadAdvice(false);
     }, 500);
     return () => window.clearTimeout(timer);
-    // runHeadAdvice 读取的是最新渲染闭包，无需进依赖；仅按触发条件重跑。
+    // runHeadAdvice/runFullAdvice 读取的是最新渲染闭包，无需进依赖；仅按触发条件重跑。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showingAdvice, adviceSignature, adviceRows.length]);
 
@@ -800,7 +834,9 @@ export function CampaignListPage({
             progress={adviceProgress}
             remainingCount={remainingCostCount}
             error={adviceError}
-            onGenerate={() => runHeadAdvice(true)}
+            onGenerate={() =>
+              isPregeneratedScope ? runFullAdvice(true) : runHeadAdvice(true)
+            }
             onGenerateAll={runAllAdvice}
           />
         ) : showingKeywords ? (

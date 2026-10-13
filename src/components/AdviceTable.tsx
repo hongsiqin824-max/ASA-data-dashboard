@@ -68,8 +68,8 @@ export function AdviceTable({
       <div className="advice-toolbar">
         <div className="advice-toolbar-text">
           <p>
-            进入本页自动生成消耗最高的头部关键词建议；点「生成全部」可对全部有消耗词分批生成
-            （遵守 ±20% 调价约束、需 7 天以上历史数据）；筛选变化会自动重算头部。
+            默认展示近 7 天全部有消耗词的建议（已预生成、秒出）；切到自定义日期时自动生成消耗最高的头部关键词，
+            其余可点「生成全部」补齐（遵守 ±20% 调价约束、需 7 天以上历史数据）。
           </p>
           {fullLoading ? (
             <span className="advice-generated-pill">
