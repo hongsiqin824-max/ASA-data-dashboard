@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { fetchCampaignOptions, fetchKeywordDailyRows, fetchKeywordRoi } from "./lib/api";
 import { dailyKeywordRowsToKeywordRows } from "./lib/daily-keywords";
 import {
@@ -122,6 +122,8 @@ function App() {
   const [homeView, setHomeView] = useState<HomeView>(() =>
     platformUi(readQueryFromUrl().platform).hasChildEntity ? "keywords" : "campaigns"
   );
+  // 建议 tab 的「导出」动作由 CampaignListPage 登记到这里，供顶栏下载按钮调用。
+  const adviceExportRef = useRef<(() => void) | null>(null);
   const [keywordScope, setKeywordScope] = useState<KeywordListScope>({
     type: "all"
   });
@@ -561,7 +563,9 @@ function App() {
       ? "导出日期汇总"
       : homeView === "campaigns"
         ? `导出${ui.parentEntity}汇总`
-        : `导出${ui.childEntity}汇总`;
+        : homeView === "advice"
+          ? "导出 AI 出价建议"
+          : `导出${ui.childEntity}汇总`;
   let exportDisabled = false;
   let onExport =
     homeView === "daily"
@@ -573,6 +577,8 @@ function App() {
           )
       : homeView === "campaigns"
       ? () => exportCampaignRows(campaignRows, query.platform)
+      : homeView === "advice"
+      ? () => adviceExportRef.current?.()
       : () => exportKeywordRows(sortedRows, query.platform);
   if (route.page === "detail" && selectedKeyword) {
     exportLabel = dailyScopeLoading
@@ -702,6 +708,7 @@ function App() {
             onOpenCampaignKeywords={openCampaignKeywords}
             onOpenDateKeywords={openDateKeywords}
             onClearKeywordScope={clearKeywordScope}
+            adviceExportRef={adviceExportRef}
           />
         )}
       </main>

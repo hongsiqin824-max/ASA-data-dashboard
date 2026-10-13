@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import type { AdviceKeywordInput, QueryParams } from "../lib/api";
 import { fetchKeywordAdvice } from "../lib/api";
 import { initialQuery } from "../lib/route";
+import { exportAdviceRows } from "../lib/export";
 import {
   compareCampaignRows,
   filterCampaignRowsByScale,
@@ -197,7 +198,8 @@ export function CampaignListPage({
   planOptions,
   planSelection,
   planLoading,
-  onPlanSelectionChange
+  onPlanSelectionChange,
+  adviceExportRef
 }: {
   data: DashboardResponse | null;
   campaignRows: CampaignRow[];
@@ -218,6 +220,7 @@ export function CampaignListPage({
   planSelection: PlanSelection;
   planLoading: boolean;
   onPlanSelectionChange: (next: PlanSelection) => void;
+  adviceExportRef?: MutableRefObject<(() => void) | null>;
 }) {
   const ui = platformUi(query.platform);
   const keywordRows = useMemo(() => {
@@ -596,6 +599,16 @@ export function CampaignListPage({
     // runHeadAdvice/runFullAdvice 读取的是最新渲染闭包，无需进依赖；仅按触发条件重跑。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showingAdvice, adviceSignature, adviceRows.length]);
+
+  // 把「导出 AI 出价建议」的动作登记给上层（顶栏下载按钮在建议 tab 时调用它）。
+  useEffect(() => {
+    if (!adviceExportRef) return;
+    adviceExportRef.current = () =>
+      exportAdviceRows(adviceRows, advices, scene3KeySet, adviceKey, query.platform);
+    return () => {
+      adviceExportRef.current = null;
+    };
+  }, [adviceExportRef, adviceRows, advices, scene3KeySet, query.platform]);
 
   const title = showingAdvice
     ? "AI 出价建议"

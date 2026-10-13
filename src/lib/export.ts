@@ -3,6 +3,8 @@ import type {
   DailyCampaignRow,
   DailyKeywordRow,
   DataPlatform,
+  KeywordAdvice,
+  KeywordAdviceAction,
   KeywordRow
 } from "./types";
 import { platformExportPrefix } from "./platform";
@@ -572,6 +574,51 @@ export function exportDailySummaryRows(
     row.d60Roi
   ]);
   downloadCsv(`${platformExportPrefix(platform)}-daily-roi-summary.csv`, headers, body);
+}
+
+const ADVICE_ACTION_LABEL: Record<KeywordAdviceAction, string> = {
+  up: "提价",
+  down: "降价",
+  pause: "暂停",
+  hold: "维持"
+};
+
+// 导出「AI 出价建议」表：当前页面展示的有消耗词 + 场景三词，连同已生成的建议。
+// 未生成建议的行，建议相关列留空（指标列始终有值）。
+export function exportAdviceRows(
+  rows: KeywordRow[],
+  advices: Map<string, KeywordAdvice>,
+  scene3Keys: Set<string>,
+  adviceKeyOf: (row: KeywordRow) => string,
+  platform: DataPlatform
+) {
+  const headers = [
+    "关键词ID", "关键词", "计划", "广告组", "场景三",
+    "总安装", "激活", "注册", "消耗", "付费率",
+    "广告收入", "会员收入", "充值收入", "付费收入", "总收益", "总ROI",
+    "当前出价", "建议出价", "调价动作", "模型原建议出价", "模型原动作", "规则修正", "AI优化建议"
+  ];
+  const body = rows.map((row) => {
+    const key = adviceKeyOf(row);
+    const advice = advices.get(key);
+    return [
+      row.keywordId,
+      row.keyword || row.keywordId,
+      row.campaignName || row.campaignId,
+      row.adGroupName || row.adGroupId,
+      scene3Keys.has(key) ? "是" : "",
+      row.installs, row.activations, row.registrations, row.cost, row.paymentRate,
+      row.adRevenue, row.vipRevenue, row.rechargeRevenue, row.payRevenue, row.totalRevenue, row.roi,
+      row.currentBid ?? "",
+      advice?.recommendedBid ?? "",
+      advice ? ADVICE_ACTION_LABEL[advice.action] : "",
+      advice?.rawRecommendedBid ?? "",
+      advice ? ADVICE_ACTION_LABEL[advice.rawAction] : "",
+      advice?.adjustments.join("；") ?? "",
+      advice?.reason ?? ""
+    ];
+  });
+  downloadCsv(`${platformExportPrefix(platform)}-ai-bid-advice.csv`, headers, body);
 }
 
 function downloadCsv(
