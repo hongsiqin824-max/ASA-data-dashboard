@@ -13,6 +13,7 @@
     "lint": "eslint .",
     "test": "tsx --test tests/*.test.ts",
     "pregenerate-advice": "tsx server/pregenerate-advice.ts",
+    "pregenerate-harmony-devices": "tsx server/pregenerate-harmony-devices.ts",
     "check:platform-schema": "tsx server/check-platform-schema.ts"
   },
   "dependencies": {

@@ -3,11 +3,11 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  fetchHarmonyNewDevices,
   fetchLiveCampaigns,
   fetchLiveDailyRows,
   fetchLiveData
 } from "./starrocks";
+import { getHarmonyNewDevices } from "./harmony-device-service";
 import { dataModelForPlatform } from "./data-model";
 import { adGroups, campaigns, channelGroups, channels, statuses } from "./filters";
 import { compactDate, parseRevenueMode, parseSourceMode } from "./shared";
@@ -474,7 +474,7 @@ app.get("/api/harmony/new-devices", async (req, res) => {
     req.query.onlyValidOaid === "true" || req.query.onlyValidOaid === "1";
 
   try {
-    const result = await fetchHarmonyNewDevices({
+    const result = await getHarmonyNewDevices({
       startDate,
       endDate,
       onlyValidOaid
