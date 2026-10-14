@@ -1004,10 +1004,13 @@ export async function fetchLiveDailyRows(params: LiveQueryParams) {
 const HARMONY_DEVICE_TABLE =
   process.env.ASA_DB_TABLE_HM_DEVICE ?? "hive.dim.dim_device_pt";
 
+// 单日新增量很小（实测约一千），一次全量返回即可；此上限仅作极端情况兜底，防拖垮服务。
+const HARMONY_DEVICE_MAX_ROWS = Number(
+  process.env.HARMONY_DEVICE_MAX_ROWS ?? 100000
+);
+
 export type HarmonyNewDeviceParams = {
   date: string; // YYYY-MM-DD，按设备创建日（dev_created_at）筛新增
-  page: number;
-  pageSize: number;
   onlyValidOaid: boolean; // true 时排除 oaid 为「未知/空/0」的设备
 };
 
@@ -1044,11 +1047,11 @@ export async function fetchHarmonyNewDevices(params: HarmonyNewDeviceParams) {
   const snapshotDay = await fetchLatestDeviceSnapshotDay();
   const startAt = `${params.date} 00:00:00`;
   const endAt = `${nextDayDashed(params.date)} 00:00:00`;
-  const offset = (params.page - 1) * params.pageSize;
   const oaidClause = params.onlyValidOaid
     ? "AND oaid IS NOT NULL AND oaid NOT IN ('未知', '', '0')"
     : "";
-  // 多取 1 条用于判断是否还有下一页，避免再跑一次 COUNT 全表扫描。
+  // 一次返回当天全部：ORDER BY 补 dev_id 做唯一兜底，保证输出稳定、无重复；
+  // 多取 1 条用于判断是否触达安全上限（truncated）。
   const sql = `SELECT dev_id, oaid, dev_platform, dev_channel,
       dev_created_at, dev_first_act_at, admin_dev_model
     FROM ${HARMONY_DEVICE_TABLE}
@@ -1056,25 +1059,26 @@ export async function fetchHarmonyNewDevices(params: HarmonyNewDeviceParams) {
       AND dev_platform IN ('Harmony', 'harmonyos')
       AND dev_created_at >= ? AND dev_created_at < ?
       ${oaidClause}
-    ORDER BY dev_created_at
-    LIMIT ? OFFSET ?`;
+    ORDER BY dev_created_at, dev_id
+    LIMIT ?`;
   const [result] = await getPool().query(sql, [
     snapshotDay,
     startAt,
     endAt,
-    params.pageSize + 1,
-    offset
+    HARMONY_DEVICE_MAX_ROWS + 1
   ]);
   const list = result as unknown as Record<string, unknown>[];
-  const hasMore = list.length > params.pageSize;
-  const devices: HarmonyNewDevice[] = list.slice(0, params.pageSize).map((r) => ({
-    deviceId: String(r.dev_id ?? ""),
-    oaid: String(r.oaid ?? ""),
-    platform: String(r.dev_platform ?? ""),
-    channel: String(r.dev_channel ?? ""),
-    createdAt: String(r.dev_created_at ?? ""),
-    firstActiveAt: String(r.dev_first_act_at ?? ""),
-    model: String(r.admin_dev_model ?? "")
-  }));
-  return { snapshotDay, hasMore, devices };
+  const truncated = list.length > HARMONY_DEVICE_MAX_ROWS;
+  const devices: HarmonyNewDevice[] = list
+    .slice(0, HARMONY_DEVICE_MAX_ROWS)
+    .map((r) => ({
+      deviceId: String(r.dev_id ?? ""),
+      oaid: String(r.oaid ?? ""),
+      platform: String(r.dev_platform ?? ""),
+      channel: String(r.dev_channel ?? ""),
+      createdAt: String(r.dev_created_at ?? ""),
+      firstActiveAt: String(r.dev_first_act_at ?? ""),
+      model: String(r.admin_dev_model ?? "")
+    }));
+  return { snapshotDay, truncated, devices };
 }

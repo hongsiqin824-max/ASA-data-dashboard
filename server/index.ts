@@ -400,7 +400,8 @@ app.post("/api/asa/keyword-advice", async (req, res) => {
 });
 
 // ===== 方案 A：鸿蒙新增设备明细接口（含 oaid），供外部做转化回传调用 =====
-// 口径：按设备创建日（dev_created_at）返回当天新增的鸿蒙设备明细（广告+自然量混合，无法区分来源）。
+// 口径：按设备创建日（dev_created_at）一次返回当天新增的鸿蒙设备全量明细（广告+自然量混合，无法区分来源）。
+// 单日量很小（约一千），不分页；输出按 (dev_created_at, dev_id) 稳定排序，无重复/遗漏。
 // 鉴权：必须带正确 token（.env.local 的 HARMONY_API_TOKEN）；未配置则接口关闭，避免敏感设备数据裸奔。
 app.get("/api/harmony/new-devices", async (req, res) => {
   const expectedToken = process.env.HARMONY_API_TOKEN;
@@ -425,29 +426,17 @@ app.get("/api/harmony/new-devices", async (req, res) => {
     res.status(400).json({ error: "缺少或非法的 date 参数（格式 YYYY-MM-DD）" });
     return;
   }
-  const page = Math.max(1, Math.trunc(Number(req.query.page ?? 1)) || 1);
-  const pageSize = Math.min(
-    10000,
-    Math.max(1, Math.trunc(Number(req.query.pageSize ?? 1000)) || 1000)
-  );
   const onlyValidOaid =
     req.query.onlyValidOaid === "true" || req.query.onlyValidOaid === "1";
 
   try {
-    const result = await fetchHarmonyNewDevices({
-      date,
-      page,
-      pageSize,
-      onlyValidOaid
-    });
+    const result = await fetchHarmonyNewDevices({ date, onlyValidOaid });
     res.json({
       platform: "HarmonyOS",
       date,
       snapshotDay: result.snapshotDay,
-      page,
-      pageSize,
       count: result.devices.length,
-      hasMore: result.hasMore,
+      truncated: result.truncated,
       devices: result.devices
     });
   } catch (error) {
