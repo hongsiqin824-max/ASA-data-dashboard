@@ -1060,6 +1060,19 @@ function nextDayDashed(date: string): string {
 
 export async function fetchHarmonyNewDevices(params: HarmonyNewDeviceParams) {
   const snapshotDay = await fetchLatestDeviceSnapshotDay();
+  // 问题3：查不到快照日（MAX(day) 为空）= 设备表无可用分区/数据源异常，
+  // 必须报错中止，而不是让 WHERE day='' 静默返回空、把异常伪装成「当天无新增」。
+  if (!snapshotDay) {
+    throw new Error(
+      "设备数据源无可用快照（MAX(day) 为空），疑似数仓异常，请稍后重试或联系开发排查。"
+    );
+  }
+  // 请求日期晚于最新快照 = 该日数据尚未就绪，返回空会误导，直接报错。
+  if (params.date.replace(/-/g, "") > snapshotDay) {
+    throw new Error(
+      `该日期数据尚未就绪：数仓设备快照目前截至 ${snapshotDay}，请改查该日期及之前。`
+    );
+  }
   const startAt = `${params.date} 00:00:00`;
   const endAt = `${nextDayDashed(params.date)} 00:00:00`;
   const oaidClause = params.onlyValidOaid

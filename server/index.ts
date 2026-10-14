@@ -426,6 +426,16 @@ app.get("/api/harmony/new-devices", async (req, res) => {
     res.status(400).json({ error: "缺少或非法的 date 参数（格式 YYYY-MM-DD）" });
     return;
   }
+  if (!isRealCalendarDate(date)) {
+    res.status(400).json({
+      error: `date 不是有效日期：${date}（例如 2026-02-30、2026-13-45 这类不存在的日期）`
+    });
+    return;
+  }
+  if (date.replace(/-/g, "") > beijingCompactDate(0)) {
+    res.status(400).json({ error: `date 不能晚于今天：${date}` });
+    return;
+  }
   const onlyValidOaid =
     req.query.onlyValidOaid === "true" || req.query.onlyValidOaid === "1";
 
@@ -448,6 +458,18 @@ app.get("/api/harmony/new-devices", async (req, res) => {
 
 function keywordScopeKey(row: Pick<KeywordRow, "campaignId" | "adGroupId" | "keywordId">) {
   return `${row.campaignId}\u0000${row.adGroupId}\u0000${row.keywordId}`;
+}
+
+// 校验是真实存在的日历日期：挡掉 2026-02-30 / 2026-13-45 这类「格式对但不存在」的日期。
+// 这类日期若放行，new Date 会自动滚动到相邻月份，导致返回张冠李戴的错数据。
+function isRealCalendarDate(date: string): boolean {
+  const [y, m, d] = date.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return (
+    dt.getUTCFullYear() === y &&
+    dt.getUTCMonth() === m - 1 &&
+    dt.getUTCDate() === d
+  );
 }
 
 function beijingCompactDate(dayOffset = 0) {
