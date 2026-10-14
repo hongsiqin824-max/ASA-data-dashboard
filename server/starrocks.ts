@@ -1010,18 +1010,25 @@ const HARMONY_DEVICE_MAX_ROWS = Number(
 );
 
 export type HarmonyNewDeviceParams = {
-  date: string; // YYYY-MM-DD，按设备创建日（dev_created_at）筛新增
+  startDate: string; // YYYY-MM-DD，按设备创建日（dev_created_at）筛新增；单天查询时 = endDate
+  endDate: string; // YYYY-MM-DD
   onlyValidOaid: boolean; // true 时排除 oaid 为「未知/空/0」的设备
 };
 
 export type HarmonyNewDevice = {
   deviceId: string;
   oaid: string;
+  uuid: string;
+  uuidDecrypt: string;
   platform: string;
   channel: string;
+  channelName: string;
+  appVersion: string;
+  model: string;
+  isRealUser: string;
+  isRealUserAt: string;
   createdAt: string;
   firstActiveAt: string;
-  model: string;
 };
 
 // 取设备维表最新快照分区：历史设备在最新快照里依然存在，故查任意历史新增日都用最新分区即可。
@@ -1067,21 +1074,25 @@ export async function fetchHarmonyNewDevices(params: HarmonyNewDeviceParams) {
       "设备数据源无可用快照（MAX(day) 为空），疑似数仓异常，请稍后重试或联系开发排查。"
     );
   }
-  // 请求日期晚于最新快照 = 该日数据尚未就绪，返回空会误导，直接报错。
-  if (params.date.replace(/-/g, "") > snapshotDay) {
+  // 区间结束日晚于最新快照 = 该日数据尚未就绪，返回会不完整，直接报错。
+  if (params.endDate.replace(/-/g, "") > snapshotDay) {
     throw new Error(
       `该日期数据尚未就绪：数仓设备快照目前截至 ${snapshotDay}，请改查该日期及之前。`
     );
   }
-  const startAt = `${params.date} 00:00:00`;
-  const endAt = `${nextDayDashed(params.date)} 00:00:00`;
+  // dim_device_pt 的 day 是「快照」分区，最新快照内含全部设备；
+  // 因此按创建日筛选一天或一段，都是对同一个快照分区做一次扫描（区间宽窄不影响扫描的分区数）。
+  const startAt = `${params.startDate} 00:00:00`;
+  const endAt = `${nextDayDashed(params.endDate)} 00:00:00`;
   const oaidClause = params.onlyValidOaid
     ? "AND oaid IS NOT NULL AND oaid NOT IN ('未知', '', '0')"
     : "";
-  // 一次返回当天全部：ORDER BY 补 dev_id 做唯一兜底，保证输出稳定、无重复；
+  // ORDER BY 补 dev_id 做唯一兜底，保证输出稳定、无重复；
   // 多取 1 条用于判断是否触达安全上限——触达即报错，绝不返回不完整数据。
-  const sql = `SELECT dev_id, oaid, dev_platform, dev_channel,
-      dev_created_at, dev_first_act_at, admin_dev_model
+  const sql = `SELECT dev_id, oaid, dev_uuid, dev_uuid_decrypt,
+      dev_platform, dev_channel, admin_dev_channel_name, admin_dev_app_version,
+      admin_dev_model, dev_is_real, dev_is_real_at,
+      dev_created_at, dev_first_act_at
     FROM ${HARMONY_DEVICE_TABLE}
     WHERE day = ?
       AND dev_platform IN ('Harmony', 'harmonyos')
@@ -1096,20 +1107,26 @@ export async function fetchHarmonyNewDevices(params: HarmonyNewDeviceParams) {
     HARMONY_DEVICE_MAX_ROWS + 1
   ]);
   const list = result as unknown as Record<string, unknown>[];
-  // 触达安全上限：说明当天数据异常偏多，为避免静默返回不完整数据，直接报错中止。
+  // 触达安全上限：说明区间数据异常偏多，为避免静默返回不完整数据，直接报错中止。
   if (list.length > HARMONY_DEVICE_MAX_ROWS) {
     throw new Error(
-      `当天新增设备数超过安全上限 ${HARMONY_DEVICE_MAX_ROWS} 条，为避免返回不完整数据已中止；请联系开发调大 HARMONY_DEVICE_MAX_ROWS 或改用分段拉取。`
+      `返回设备数超过安全上限 ${HARMONY_DEVICE_MAX_ROWS} 条，为避免返回不完整数据已中止；请收窄日期区间或联系开发调大 HARMONY_DEVICE_MAX_ROWS。`
     );
   }
   const devices: HarmonyNewDevice[] = list.map((r) => ({
     deviceId: String(r.dev_id ?? ""),
     oaid: String(r.oaid ?? ""),
+    uuid: String(r.dev_uuid ?? ""),
+    uuidDecrypt: String(r.dev_uuid_decrypt ?? ""),
     platform: String(r.dev_platform ?? ""),
     channel: String(r.dev_channel ?? ""),
+    channelName: String(r.admin_dev_channel_name ?? ""),
+    appVersion: String(r.admin_dev_app_version ?? ""),
+    model: String(r.admin_dev_model ?? ""),
+    isRealUser: String(r.dev_is_real ?? ""),
+    isRealUserAt: String(r.dev_is_real_at ?? ""),
     createdAt: String(r.dev_created_at ?? ""),
-    firstActiveAt: String(r.dev_first_act_at ?? ""),
-    model: String(r.admin_dev_model ?? "")
+    firstActiveAt: String(r.dev_first_act_at ?? "")
   }));
   return { snapshotDay, devices };
 }

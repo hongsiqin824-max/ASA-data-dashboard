@@ -421,29 +421,68 @@ app.get("/api/harmony/new-devices", async (req, res) => {
     return;
   }
 
-  const date = String(req.query.date ?? "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    res.status(400).json({ error: "缺少或非法的 date 参数（格式 YYYY-MM-DD）" });
+  // 支持两种查询：单天 date=YYYY-MM-DD，或区间 startDate+endDate=YYYY-MM-DD。
+  const dateRaw = String(req.query.date ?? "").trim();
+  const startRaw = String(req.query.startDate ?? "").trim();
+  const endRaw = String(req.query.endDate ?? "").trim();
+  let startDate: string;
+  let endDate: string;
+  if (startRaw || endRaw) {
+    if (!startRaw || !endRaw) {
+      res.status(400).json({
+        error: "区间查询需同时提供 startDate 和 endDate（格式 YYYY-MM-DD）"
+      });
+      return;
+    }
+    startDate = startRaw;
+    endDate = endRaw;
+  } else {
+    if (!dateRaw) {
+      res.status(400).json({
+        error: "请提供 date（单天）或 startDate+endDate（区间），格式 YYYY-MM-DD"
+      });
+      return;
+    }
+    startDate = dateRaw;
+    endDate = dateRaw;
+  }
+  const isRange = Boolean(startRaw || endRaw);
+  const startErr = dateParamError(startDate, isRange ? "startDate" : "date");
+  if (startErr) {
+    res.status(400).json({ error: startErr });
     return;
   }
-  if (!isRealCalendarDate(date)) {
+  const endErr = dateParamError(endDate, isRange ? "endDate" : "date");
+  if (endErr) {
+    res.status(400).json({ error: endErr });
+    return;
+  }
+  if (startDate.replace(/-/g, "") > endDate.replace(/-/g, "")) {
     res.status(400).json({
-      error: `date 不是有效日期：${date}（例如 2026-02-30、2026-13-45 这类不存在的日期）`
+      error: `startDate 不能晚于 endDate：${startDate} > ${endDate}`
     });
     return;
   }
-  if (date.replace(/-/g, "") > beijingCompactDate(0)) {
-    res.status(400).json({ error: `date 不能晚于今天：${date}` });
+  const spanDays = daySpanInclusive(startDate, endDate);
+  if (spanDays > HARMONY_RANGE_MAX_DAYS) {
+    res.status(400).json({
+      error: `日期区间最多 ${HARMONY_RANGE_MAX_DAYS} 天，当前 ${spanDays} 天，请收窄区间或分多次拉取`
+    });
     return;
   }
   const onlyValidOaid =
     req.query.onlyValidOaid === "true" || req.query.onlyValidOaid === "1";
 
   try {
-    const result = await fetchHarmonyNewDevices({ date, onlyValidOaid });
+    const result = await fetchHarmonyNewDevices({
+      startDate,
+      endDate,
+      onlyValidOaid
+    });
     res.json({
       platform: "HarmonyOS",
-      date,
+      startDate,
+      endDate,
       snapshotDay: result.snapshotDay,
       count: result.devices.length,
       devices: result.devices
@@ -470,6 +509,32 @@ function isRealCalendarDate(date: string): boolean {
     dt.getUTCMonth() === m - 1 &&
     dt.getUTCDate() === d
   );
+}
+
+// 鸿蒙设备接口日期区间最大跨度（天），防止一次拉过宽导致响应过大。
+const HARMONY_RANGE_MAX_DAYS = Number(process.env.HARMONY_RANGE_MAX_DAYS ?? 31);
+
+// 单个日期参数的统一校验：格式 + 真实日期 + 不晚于今天。返回错误文案或 null。
+function dateParamError(value: string, label: string): string | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return `${label} 格式应为 YYYY-MM-DD：${value || "(空)"}`;
+  }
+  if (!isRealCalendarDate(value)) {
+    return `${label} 不是有效日期：${value}（例如 2026-02-30、2026-13-45 这类不存在的日期）`;
+  }
+  if (value.replace(/-/g, "") > beijingCompactDate(0)) {
+    return `${label} 不能晚于今天：${value}`;
+  }
+  return null;
+}
+
+// 闭区间天数（含首尾）。两个入参都应已通过 dateParamError 校验。
+function daySpanInclusive(startDate: string, endDate: string): number {
+  const [sy, sm, sd] = startDate.split("-").map(Number);
+  const [ey, em, ed] = endDate.split("-").map(Number);
+  const start = Date.UTC(sy, sm - 1, sd);
+  const end = Date.UTC(ey, em - 1, ed);
+  return Math.floor((end - start) / 86400000) + 1;
 }
 
 function beijingCompactDate(dayOffset = 0) {
