@@ -436,7 +436,6 @@ app.get("/api/harmony/new-devices", async (req, res) => {
       date,
       snapshotDay: result.snapshotDay,
       count: result.devices.length,
-      truncated: result.truncated,
       devices: result.devices
     });
   } catch (error) {
