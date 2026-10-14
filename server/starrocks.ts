@@ -997,3 +997,84 @@ export async function fetchLiveCampaigns(platform: DataPlatform) {
 export async function fetchLiveDailyRows(params: LiveQueryParams) {
   return fetchDailyRows(params);
 }
+
+// ===== 方案 A：鸿蒙新增设备明细（含 oaid），供外部做转化回传调用 =====
+// 数据源：设备维表 dim_device_pt（懂球帝自有设备，按 day 做每日快照分区）。
+// 注意：这是「新增设备」口径（含广告+自然量，无法区分来源），不是「广告下载」明细。
+const HARMONY_DEVICE_TABLE =
+  process.env.ASA_DB_TABLE_HM_DEVICE ?? "hive.dim.dim_device_pt";
+
+export type HarmonyNewDeviceParams = {
+  date: string; // YYYY-MM-DD，按设备创建日（dev_created_at）筛新增
+  page: number;
+  pageSize: number;
+  onlyValidOaid: boolean; // true 时排除 oaid 为「未知/空/0」的设备
+};
+
+export type HarmonyNewDevice = {
+  deviceId: string;
+  oaid: string;
+  platform: string;
+  channel: string;
+  createdAt: string;
+  firstActiveAt: string;
+  model: string;
+};
+
+// 取设备维表最新快照分区：历史设备在最新快照里依然存在，故查任意历史新增日都用最新分区即可。
+async function fetchLatestDeviceSnapshotDay(): Promise<string> {
+  const [result] = await getPool().query(
+    `SELECT MAX(day) AS max_day FROM ${HARMONY_DEVICE_TABLE}`
+  );
+  const row = (result as unknown as Record<string, unknown>[])[0];
+  return String(row?.max_day ?? "");
+}
+
+// YYYY-MM-DD 的次日，用于拼 [date 00:00:00, nextDay 00:00:00) 左闭右开区间。
+function nextDayDashed(date: string): string {
+  const d = new Date(`${date}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  const year = d.getUTCFullYear();
+  const month = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+export async function fetchHarmonyNewDevices(params: HarmonyNewDeviceParams) {
+  const snapshotDay = await fetchLatestDeviceSnapshotDay();
+  const startAt = `${params.date} 00:00:00`;
+  const endAt = `${nextDayDashed(params.date)} 00:00:00`;
+  const offset = (params.page - 1) * params.pageSize;
+  const oaidClause = params.onlyValidOaid
+    ? "AND oaid IS NOT NULL AND oaid NOT IN ('未知', '', '0')"
+    : "";
+  // 多取 1 条用于判断是否还有下一页，避免再跑一次 COUNT 全表扫描。
+  const sql = `SELECT dev_id, oaid, dev_platform, dev_channel,
+      dev_created_at, dev_first_act_at, admin_dev_model
+    FROM ${HARMONY_DEVICE_TABLE}
+    WHERE day = ?
+      AND dev_platform IN ('Harmony', 'harmonyos')
+      AND dev_created_at >= ? AND dev_created_at < ?
+      ${oaidClause}
+    ORDER BY dev_created_at
+    LIMIT ? OFFSET ?`;
+  const [result] = await getPool().query(sql, [
+    snapshotDay,
+    startAt,
+    endAt,
+    params.pageSize + 1,
+    offset
+  ]);
+  const list = result as unknown as Record<string, unknown>[];
+  const hasMore = list.length > params.pageSize;
+  const devices: HarmonyNewDevice[] = list.slice(0, params.pageSize).map((r) => ({
+    deviceId: String(r.dev_id ?? ""),
+    oaid: String(r.oaid ?? ""),
+    platform: String(r.dev_platform ?? ""),
+    channel: String(r.dev_channel ?? ""),
+    createdAt: String(r.dev_created_at ?? ""),
+    firstActiveAt: String(r.dev_first_act_at ?? ""),
+    model: String(r.admin_dev_model ?? "")
+  }));
+  return { snapshotDay, hasMore, devices };
+}

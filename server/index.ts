@@ -2,7 +2,12 @@ import "./env"; // 必须第一行：先加载 .env.local，再让下面的模�
 import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { fetchLiveCampaigns, fetchLiveDailyRows, fetchLiveData } from "./starrocks";
+import {
+  fetchHarmonyNewDevices,
+  fetchLiveCampaigns,
+  fetchLiveDailyRows,
+  fetchLiveData
+} from "./starrocks";
 import { dataModelForPlatform } from "./data-model";
 import { adGroups, campaigns, channelGroups, channels, statuses } from "./filters";
 import { compactDate, parseRevenueMode, parseSourceMode } from "./shared";
@@ -391,6 +396,65 @@ app.post("/api/asa/keyword-advice", async (req, res) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : "未知错误";
     res.status(500).json({ error: `AI 出价建议生成失败：${message}` });
+  }
+});
+
+// ===== 方案 A：鸿蒙新增设备明细接口（含 oaid），供外部做转化回传调用 =====
+// 口径：按设备创建日（dev_created_at）返回当天新增的鸿蒙设备明细（广告+自然量混合，无法区分来源）。
+// 鉴权：必须带正确 token（.env.local 的 HARMONY_API_TOKEN）；未配置则接口关闭，避免敏感设备数据裸奔。
+app.get("/api/harmony/new-devices", async (req, res) => {
+  const expectedToken = process.env.HARMONY_API_TOKEN;
+  if (!expectedToken) {
+    res.status(503).json({
+      error: "接口未启用：请在 .env.local 配置 HARMONY_API_TOKEN 后重启"
+    });
+    return;
+  }
+  const token = String(req.query.token ?? req.headers["x-api-token"] ?? "");
+  if (token !== expectedToken) {
+    res.status(401).json({ error: "无效的接口令牌" });
+    return;
+  }
+  if (sourceMode !== "live") {
+    res.status(503).json({ error: "当前非实时数据模式（ASA_DATA_MODE 非 live），接口不可用" });
+    return;
+  }
+
+  const date = String(req.query.date ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    res.status(400).json({ error: "缺少或非法的 date 参数（格式 YYYY-MM-DD）" });
+    return;
+  }
+  const page = Math.max(1, Math.trunc(Number(req.query.page ?? 1)) || 1);
+  const pageSize = Math.min(
+    10000,
+    Math.max(1, Math.trunc(Number(req.query.pageSize ?? 1000)) || 1000)
+  );
+  const onlyValidOaid =
+    req.query.onlyValidOaid === "true" || req.query.onlyValidOaid === "1";
+
+  try {
+    const result = await fetchHarmonyNewDevices({
+      date,
+      page,
+      pageSize,
+      onlyValidOaid
+    });
+    res.json({
+      platform: "HarmonyOS",
+      date,
+      snapshotDay: result.snapshotDay,
+      page,
+      pageSize,
+      count: result.devices.length,
+      hasMore: result.hasMore,
+      devices: result.devices
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "未知错误";
+    res.status(500).json({
+      error: `鸿蒙新增设备读取失败：${message}。请确认已开启飞连 VPN，且数据库账号对设备维表有查询权限。`
+    });
   }
 });
 
