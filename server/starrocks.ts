@@ -1019,7 +1019,6 @@ export type HarmonyNewDevice = {
   deviceId: string;
   oaid: string;
   uuid: string;
-  uuidDecrypt: string;
   platform: string;
   channel: string;
   channelName: string;
@@ -1089,7 +1088,7 @@ export async function fetchHarmonyNewDevices(params: HarmonyNewDeviceParams) {
     : "";
   // ORDER BY 补 dev_id 做唯一兜底，保证输出稳定、无重复；
   // 多取 1 条用于判断是否触达安全上限——触达即报错，绝不返回不完整数据。
-  const sql = `SELECT dev_id, oaid, dev_uuid, dev_uuid_decrypt,
+  const sql = `SELECT dev_id, oaid, dev_uuid,
       dev_platform, dev_channel, admin_dev_channel_name, admin_dev_app_version,
       admin_dev_model, dev_is_real, dev_is_real_at,
       dev_created_at, dev_first_act_at
@@ -1117,7 +1116,6 @@ export async function fetchHarmonyNewDevices(params: HarmonyNewDeviceParams) {
     deviceId: String(r.dev_id ?? ""),
     oaid: String(r.oaid ?? ""),
     uuid: String(r.dev_uuid ?? ""),
-    uuidDecrypt: String(r.dev_uuid_decrypt ?? ""),
     platform: String(r.dev_platform ?? ""),
     channel: String(r.dev_channel ?? ""),
     channelName: String(r.admin_dev_channel_name ?? ""),
