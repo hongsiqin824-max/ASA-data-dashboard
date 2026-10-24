@@ -4,7 +4,7 @@ import {
   retentionDaysAvailable,
   retentionRate
 } from "./retention-maturity";
-import type { DailyCampaignRow, NaturalDailyRow } from "./types";
+import type { NaturalDailyRow } from "./types";
 
 // 自然量表只建了这 8 档留存，恰好等于列表页的精简档位（overallRetentionDays）。
 export const NATURAL_RETENTION_COLUMNS: RetentionColumn[] = compactRetentionColumns("");
@@ -12,11 +12,9 @@ export const NATURAL_RETENTION_COLUMNS: RetentionColumn[] = compactRetentionColu
 export type NaturalRetentionKey = (typeof NATURAL_RETENTION_COLUMNS)[number]["key"] &
   keyof NaturalDailyRow;
 
-// 自然量 × ASA 同日对照行：ASA 列来自同一响应里的 dailySummaryRows（已按当前筛选过滤）。
-// asaActivations 为 null 表示该日 ASA 没有行（如筛了关键词/计划后该日无投放），不要当 0。
+// 自然量 × ASA 同日对照行。ASA 列由服务端按「全量」按天汇总附带（见 server/starrocks.ts fetchNaturalDaily），
+// 不随关键词/计划/广告组/ROI 分层筛选变化；asaActivations 为 null 表示 ASA 当日无行，不要当 0。
 export type NaturalCompareRow = NaturalDailyRow & {
-  asaActivations: number | null;
-  asaRegistrations: number | null;
   // 自然量激活 / (自然量 + ASA 激活)；ASA 缺失时为 null。
   naturalShare: number | null;
 };
@@ -45,26 +43,13 @@ export function naturalShare(
   return total > 0 ? natural / total : null;
 }
 
-// dailySummaryRows.date 是 YYYYMMDD，自然量行是 YYYY-MM-DD；统一成紧凑格式再按日对齐。
-function compactDate(value: string) {
-  return value.replace(/-/g, "");
-}
-
 export function buildNaturalCompareRows(
-  naturalRows: NaturalDailyRow[],
-  asaDailyRows: DailyCampaignRow[]
+  naturalRows: NaturalDailyRow[]
 ): NaturalCompareRow[] {
-  const asaByDate = new Map(asaDailyRows.map((row) => [compactDate(row.date), row]));
-  return naturalRows.map((row) => {
-    const asa = asaByDate.get(compactDate(row.date));
-    const asaActivations = asa ? asa.activations : null;
-    return {
-      ...row,
-      asaActivations,
-      asaRegistrations: asa ? asa.registrations : null,
-      naturalShare: naturalShare(row.activations, asaActivations)
-    };
-  });
+  return naturalRows.map((row) => ({
+    ...row,
+    naturalShare: naturalShare(row.activations, row.asaActivations)
+  }));
 }
 
 export function summarizeNaturalCompareRows(

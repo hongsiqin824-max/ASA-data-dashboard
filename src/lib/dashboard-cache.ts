@@ -1,8 +1,8 @@
 import type { QueryParams } from "./api";
 import type { DashboardResponse } from "./types";
 
-// v13：DashboardResponse 新增 naturalDailyRows / naturalDataAsOfDate（iOS 自然量）。
-const CACHE_VERSION = 13;
+// v14：NaturalDailyRow 新增服务端全量 asaActivations / asaRegistrations，旧缓存缺字段须作废。
+const CACHE_VERSION = 14;
 const ITEM_PREFIX = `asa-roi-dashboard:v${CACHE_VERSION}:dashboard:`;
 const INDEX_KEY = `asa-roi-dashboard:v${CACHE_VERSION}:index`;
 const MAX_CACHE_ITEMS = 8;

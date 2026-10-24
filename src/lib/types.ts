@@ -313,10 +313,14 @@ export type DailyKeywordRow = RetainUvFields & ExtendedRoiFields & {
 // iOS 自然量按天行（hive.ads.ads_ad_ios_natural_user_di）：剔除 ASA 归因后的 iPhone 新增设备。
 // 只有激活/注册/留存设备数，没有消耗、收益、关键词、计划等维度。
 // 留存字段为 null 表示数仓未返回；未到期窗口数仓返回 0，成熟度仍由前端按日期判断。
+// asaActivations / asaRegistrations 是同日 ASA 表的「全量」按天汇总（服务端只按 day 过滤，
+// 不受关键词/计划/广告组/ROI 分层筛选影响），用于和自然量做全盘对照；ASA 当日无行时为 null。
 export type NaturalDailyRow = {
   date: string;
   activations: number;
   registrations: number;
+  asaActivations: number | null;
+  asaRegistrations: number | null;
   retainUv1d: number | null;
   retainUv3d: number | null;
   retainUv7d: number | null;

@@ -14,13 +14,15 @@ import {
   summarizeNaturalCompareRows
 } from "../src/lib/natural-daily";
 import { overallRetentionDays } from "../src/lib/retention-maturity";
-import type { DailyCampaignRow, NaturalDailyRow } from "../src/lib/types";
+import type { NaturalDailyRow } from "../src/lib/types";
 
 function naturalRow(overrides: Partial<NaturalDailyRow> = {}): NaturalDailyRow {
   return {
     date: "2026-10-20",
     activations: 1000,
     registrations: 250,
+    asaActivations: null,
+    asaRegistrations: null,
     retainUv1d: 400,
     retainUv3d: 300,
     retainUv7d: 0,
@@ -68,8 +70,8 @@ test("自然量留存档位与列表页精简档位同源", () => {
   assert.equal(NATURAL_RETENTION_COLUMNS[0].label, "次日留存");
 });
 
-test("数仓行映射：日期用 report_date，留存保留 0 与 NULL 的区别", () => {
-  const row = mapNaturalDailyRow({
+test("数仓行映射：日期用 report_date，留存保留 0 与 NULL 的区别，ASA 对照按日合并", () => {
+  const raw = {
     day: "20261020",
     report_date: "2026-10-20",
     new_user_cnt: "3067",
@@ -82,7 +84,8 @@ test("数仓行映射：日期用 report_date，留存保留 0 与 NULL 的区�
     retain_uv_60d: 0,
     retain_uv_90d: 0,
     retain_uv_180d: 0
-  });
+  };
+  const row = mapNaturalDailyRow(raw);
   assert.equal(row.date, "2026-10-20");
   assert.equal(row.activations, 3067);
   assert.equal(row.registrations, 748);
@@ -90,6 +93,17 @@ test("数仓行映射：日期用 report_date，留存保留 0 与 NULL 的区�
   assert.equal(row.retainUv3d, 0);
   assert.equal(row.retainUv7d, null);
   assert.equal(row.retainUv14d, null);
+  // 不传 ASA 汇总 → 对照列为 null，不是 0
+  assert.equal(row.asaActivations, null);
+  assert.equal(row.asaRegistrations, null);
+
+  // ASA 按天全量汇总的 key 是 dbDay 后的 YYYY-MM-DD，与自然量行 date 同格式
+  const withAsa = mapNaturalDailyRow(
+    raw,
+    new Map([["2026-10-20", { activations: 324, registrations: 91 }]])
+  );
+  assert.equal(withAsa.asaActivations, 324);
+  assert.equal(withAsa.asaRegistrations, 91);
 });
 
 test("未到期留存窗口数仓返回 0，不能当真实留存显示", () => {
@@ -108,19 +122,11 @@ test("自然量占比 = 自然 / (自然 + ASA)，ASA 缺失时为 null 而非 0
   assert.equal(naturalShare(3000, null), null);
 });
 
-test("对照行按日期匹配同日 ASA 激活/注册，无 ASA 行的日期保留为 null", () => {
-  // dailySummaryRows.date 真实格式是 YYYYMMDD，自然量行是 YYYY-MM-DD，必须能对上
-  const asa = [
-    { date: "20261020", activations: 1000, registrations: 300 },
-    { date: "20261021", activations: 500, registrations: 100 }
-  ] as DailyCampaignRow[];
-  const rows = buildNaturalCompareRows(
-    [
-      naturalRow({ date: "2026-10-20", activations: 3000 }),
-      naturalRow({ date: "2026-10-22", activations: 2000 })
-    ],
-    asa
-  );
+test("对照行直接用服务端附带的全量 ASA 列算占比，ASA 缺失的日期保留 null", () => {
+  const rows = buildNaturalCompareRows([
+    naturalRow({ date: "2026-10-20", activations: 3000, asaActivations: 1000, asaRegistrations: 300 }),
+    naturalRow({ date: "2026-10-22", activations: 2000 })
+  ]);
   assert.equal(rows.length, 2);
   assert.equal(rows[0].asaActivations, 1000);
   assert.equal(rows[0].asaRegistrations, 300);
@@ -131,13 +137,17 @@ test("对照行按日期匹配同日 ASA 激活/注册，无 ASA 行的日期保
 });
 
 test("汇总行累加激活/注册/留存，并按最早一天判断留存成熟度", () => {
-  const rows = buildNaturalCompareRows(
-    [
-      naturalRow({ date: "2026-10-16", activations: 1000, retainUv1d: 400, retainUv7d: 200 }),
-      naturalRow({ date: "2026-10-20", activations: 1000, retainUv1d: 500, retainUv7d: 0 })
-    ],
-    [{ date: "2026-10-16", activations: 400, registrations: 50 }] as DailyCampaignRow[]
-  );
+  const rows = buildNaturalCompareRows([
+    naturalRow({
+      date: "2026-10-16",
+      activations: 1000,
+      retainUv1d: 400,
+      retainUv7d: 200,
+      asaActivations: 400,
+      asaRegistrations: 50
+    }),
+    naturalRow({ date: "2026-10-20", activations: 1000, retainUv1d: 500, retainUv7d: 0 })
+  ]);
   const summary = summarizeNaturalCompareRows(rows);
   assert.equal(summary.dayCount, 2);
   assert.equal(summary.activations, 2000);

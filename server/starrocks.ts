@@ -987,13 +987,25 @@ export async function fetchLiveData(params: LiveQueryParams) {
 // ===== iOS 自然量按天（hive.ads.ads_ad_ios_natural_user_di）=====
 // 表粒度：一天一行，剔除 ASA 归因后的 iPhone 新增设备及其留存。
 // 没有关键词/计划/消耗/收益，所以只按 day 分区裁剪，不套用 buildFilters 的其它筛选条件。
+// 同日 ASA 对照（asaActivations / asaRegistrations）也在这里按「全量」取：
+// 只按 day 过滤 ASA 表再 GROUP BY day，故意不走 buildFilters —— 对照的语义是全盘 ASA vs 全盘自然量，
+// 不应随关键词/计划/广告组/ROI 分层筛选变化（否则占比会被误读）。
 const NATURAL_RETENTION_DAYS = [1, 3, 7, 14, 30, 60, 90, 180] as const;
 
-export function mapNaturalDailyRow(r: Record<string, unknown>): NaturalDailyRow {
+export type AsaDailyTotal = { activations: number; registrations: number };
+
+export function mapNaturalDailyRow(
+  r: Record<string, unknown>,
+  asaByDay: ReadonlyMap<string, AsaDailyTotal> = new Map()
+): NaturalDailyRow {
+  const date = dbDay(r.report_date) ?? dbDay(r.day) ?? "";
+  const asa = asaByDay.get(date);
   return {
-    date: dbDay(r.report_date) ?? dbDay(r.day) ?? "",
+    date,
     activations: num(r.new_user_cnt),
     registrations: num(r.new_register_cnt),
+    asaActivations: asa ? asa.activations : null,
+    asaRegistrations: asa ? asa.registrations : null,
     retainUv1d: nullableNum(r.retain_uv_1d),
     retainUv3d: nullableNum(r.retain_uv_3d),
     retainUv7d: nullableNum(r.retain_uv_7d),
@@ -1014,8 +1026,9 @@ async function fetchNaturalDaily(params: LiveQueryParams): Promise<{
   const retentionSelect = NATURAL_RETENTION_DAYS.map(
     (day) => `retain_uv_${day}d`
   ).join(", ");
+  const asaTable = buildPlatformSourceRelation("iOS");
   try {
-    const [rowsResult, asOfResult] = await Promise.all([
+    const [rowsResult, asOfResult, asaResult] = await Promise.all([
       getPool().query(
         `SELECT day, report_date, new_user_cnt, new_register_cnt, ${retentionSelect}
            FROM ${IOS_NATURAL_TABLE}
@@ -1025,12 +1038,31 @@ async function fetchNaturalDaily(params: LiveQueryParams): Promise<{
       ),
       getPool().query(
         `SELECT MAX(day) AS data_as_of_date FROM ${IOS_NATURAL_TABLE} natural_max`
+      ),
+      getPool().query(
+        `SELECT day,
+                SUM(new_user_cnt) AS asa_activations,
+                SUM(new_register_cnt) AS asa_registrations
+           FROM ${asaTable} asa_daily
+          WHERE day BETWEEN ? AND ?
+          GROUP BY day`,
+        [params.startDate, params.endDate]
       )
     ]);
     const list = rowsResult[0] as unknown as Record<string, unknown>[];
     const asOfRow = (asOfResult[0] as unknown as Record<string, unknown>[])[0];
+    const asaList = asaResult[0] as unknown as Record<string, unknown>[];
+    const asaByDay = new Map<string, AsaDailyTotal>();
+    asaList.forEach((r) => {
+      const day = dbDay(r.day);
+      if (!day) return;
+      asaByDay.set(day, {
+        activations: num(r.asa_activations),
+        registrations: num(r.asa_registrations)
+      });
+    });
     return {
-      rows: list.map(mapNaturalDailyRow),
+      rows: list.map((r) => mapNaturalDailyRow(r, asaByDay)),
       dataAsOfDate: dbDay(asOfRow?.data_as_of_date)
     };
   } catch (error) {

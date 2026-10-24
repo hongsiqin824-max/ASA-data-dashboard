@@ -373,7 +373,7 @@ export function CampaignListPage({
       : `当前区间共 ${formatNumber(dailyRows.length)} 天数据，按日核验成本、收益、ROI 与转化字段`;
   const adviceEnabled = query.platform === "iOS";
   const showingAdvice = adviceEnabled && view === "advice";
-  // 自然量 tab 仅 iOS：对照数据来自同一响应的 dailySummaryRows（已随当前筛选过滤）。
+  // 自然量 tab 仅 iOS。ASA 对照列由服务端按全量附带，不随当前筛选变化。
   const naturalEnabled = query.platform === "iOS";
   const showingNatural = naturalEnabled && view === "natural";
   const showingKeywords = ui.hasChildEntity && view === "keywords";
@@ -381,13 +381,13 @@ export function CampaignListPage({
     !ui.hasChildEntity || (view === "campaigns" && !showingAdvice && !showingNatural);
   const showingDaily = view === "daily";
   const naturalRows = useMemo(
-    () => buildNaturalCompareRows(data?.naturalDailyRows ?? [], dailyRows),
-    [data?.naturalDailyRows, dailyRows]
+    () => buildNaturalCompareRows(data?.naturalDailyRows ?? []),
+    [data?.naturalDailyRows]
   );
   const naturalSubtitle =
     naturalRows.length === 0
       ? "当前区间暂无自然量数据"
-      : `当前区间共 ${formatNumber(naturalRows.length)} 天自然量数据，与同日 ASA 激活/注册对照；留存率以自然量激活为分母`;
+      : `当前区间共 ${formatNumber(naturalRows.length)} 天自然量数据，与同日 ASA 全量激活/注册对照（不受关键词/计划/ROI 分层筛选影响）；留存率以自然量激活为分母`;
 
   // 全量「有消耗」关键词（cost>0），按消耗降序。用于展示与「生成全部」。
   const allCostRows = useMemo(

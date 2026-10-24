@@ -586,10 +586,7 @@ function App() {
       : homeView === "natural"
       ? () =>
           exportNaturalCompareRows(
-            buildNaturalCompareRows(
-              data?.naturalDailyRows ?? [],
-              data?.dailySummaryRows ?? []
-            ),
+            buildNaturalCompareRows(data?.naturalDailyRows ?? []),
             query.platform,
             data?.naturalDataAsOfDate ?? data?.dataAsOfDate
           )
