@@ -13,8 +13,10 @@ import {
   exportCampaignRows,
   exportDailySummaryRows,
   exportDailyRows,
-  exportKeywordRows
+  exportKeywordRows,
+  exportNaturalCompareRows
 } from "./lib/export";
+import { buildNaturalCompareRows } from "./lib/natural-daily";
 import { withBase } from "./lib/base";
 import type { QueryParams } from "./lib/api";
 import type {
@@ -565,7 +567,9 @@ function App() {
         ? `导出${ui.parentEntity}汇总`
         : homeView === "advice"
           ? "导出 AI 出价建议"
-          : `导出${ui.childEntity}汇总`;
+          : homeView === "natural"
+            ? "导出自然量对照"
+            : `导出${ui.childEntity}汇总`;
   let exportDisabled = false;
   let onExport =
     homeView === "daily"
@@ -579,6 +583,16 @@ function App() {
       ? () => exportCampaignRows(campaignRows, query.platform)
       : homeView === "advice"
       ? () => adviceExportRef.current?.()
+      : homeView === "natural"
+      ? () =>
+          exportNaturalCompareRows(
+            buildNaturalCompareRows(
+              data?.naturalDailyRows ?? [],
+              data?.dailySummaryRows ?? []
+            ),
+            query.platform,
+            data?.naturalDataAsOfDate ?? data?.dataAsOfDate
+          )
       : () => exportKeywordRows(sortedRows, query.platform);
   if (route.page === "detail" && selectedKeyword) {
     exportLabel = dailyScopeLoading

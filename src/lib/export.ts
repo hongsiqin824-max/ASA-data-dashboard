@@ -13,6 +13,12 @@ import {
   retentionDaysAvailable,
   retentionRate
 } from "./retention-maturity";
+import {
+  NATURAL_RETENTION_COLUMNS,
+  naturalRetentionRate,
+  type NaturalCompareRow,
+  type NaturalRetentionKey
+} from "./natural-daily";
 import { statusMeta } from "./status";
 
 // 1~30 日逐日，之后按 10 日步长到 180 日（与数仓建的档位一致）。
@@ -418,6 +424,46 @@ export function exportDailyRows(
   ]);
   downloadCsv(
     `${platformExportPrefix(platform)}-${keyword}-daily-detail.csv`,
+    headers,
+    body
+  );
+}
+
+// 导出 iOS「自然量」逐日对照表：自然量激活/注册/留存 + 同日 ASA 激活/注册。
+// 自然量表无消耗/收益，不导出 ROI；留存列未成熟时留空，与逐日汇总导出一致。
+export function exportNaturalCompareRows(
+  rows: NaturalCompareRow[],
+  platform: DataPlatform,
+  latestDate?: string | null
+) {
+  const headers = [
+    "日期",
+    "自然量激活",
+    "ASA激活",
+    "自然量占比",
+    "自然量注册",
+    "ASA注册",
+    "自然量注册率",
+    ...NATURAL_RETENTION_COLUMNS.map((col) => col.label)
+  ];
+  const percent = (value: number | null) =>
+    value === null ? "" : `${(value * 100).toFixed(2)}%`;
+  const body = rows.map((row) => [
+    row.date,
+    row.activations,
+    row.asaActivations ?? "",
+    percent(row.naturalShare),
+    row.registrations,
+    row.asaRegistrations ?? "",
+    row.activations > 0 ? percent(row.registrations / row.activations) : "",
+    ...NATURAL_RETENTION_COLUMNS.map((col) =>
+      percent(
+        naturalRetentionRate(row, col.key as NaturalRetentionKey, latestDate)
+      )
+    )
+  ]);
+  downloadCsv(
+    `${platformExportPrefix(platform)}-natural-daily-compare.csv`,
     headers,
     body
   );

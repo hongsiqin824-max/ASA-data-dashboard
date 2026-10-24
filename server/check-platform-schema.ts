@@ -1,7 +1,14 @@
 import "./env";
 import mysql from "mysql2/promise";
-import { resolvePlatformSource, XHS_WORLD_CUP_RANGE } from "./platform";
-import { compareRequiredColumns } from "./platform-schema";
+import {
+  IOS_NATURAL_TABLE,
+  resolvePlatformSource,
+  XHS_WORLD_CUP_RANGE
+} from "./platform";
+import {
+  compareIosNaturalRequiredColumns,
+  compareRequiredColumns
+} from "./platform-schema";
 import type { DataPlatform } from "./types";
 
 const platforms: readonly DataPlatform[] = ["iOS", "HarmonyOS", "Xiaohongshu"];
@@ -65,6 +72,49 @@ for (const platform of platforms) {
       )
     );
   }
+}
+
+// iOS 附属：自然量按天表
+try {
+  const [columnRows] = await connection.query(`DESCRIBE ${IOS_NATURAL_TABLE}`);
+  const columns = (columnRows as Array<Record<string, unknown>>).map((row) =>
+    String(row.Field ?? "")
+  );
+  const check = compareIosNaturalRequiredColumns(columns);
+  const [statRows] = await connection.query(
+    `SELECT MIN(day) AS min_day, MAX(day) AS max_day, COUNT(*) AS row_count FROM ${IOS_NATURAL_TABLE}`
+  );
+  const stats = (statRows as Array<Record<string, unknown>>)[0] ?? {};
+  console.log(
+    JSON.stringify(
+      {
+        platform: "iOS(natural)",
+        table: IOS_NATURAL_TABLE,
+        columnCount: columns.length,
+        ok: check.ok,
+        missing: check.missing,
+        minDay: stats.min_day ?? null,
+        maxDay: stats.max_day ?? null,
+        rowCount: stats.row_count ?? 0
+      },
+      null,
+      2
+    )
+  );
+  if (!check.ok) failed = true;
+} catch (error) {
+  failed = true;
+  console.error(
+    JSON.stringify(
+      {
+        platform: "iOS(natural)",
+        table: IOS_NATURAL_TABLE,
+        error: error instanceof Error ? error.message : String(error)
+      },
+      null,
+      2
+    )
+  );
 }
 
 await connection.end();

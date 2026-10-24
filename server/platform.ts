@@ -46,6 +46,10 @@ export function resolvePlatformSource(platform: DataPlatform): PlatformSource {
   return sources[platform];
 }
 
+// iOS 自然量按天表：剔除 ASA 归因后的 iPhone 新增设备，仅在 iOS 平台下附带查询。
+export const IOS_NATURAL_TABLE =
+  process.env.ASA_DB_TABLE_IOS_NATURAL ?? "hive.ads.ads_ad_ios_natural_user_di";
+
 export function platformSourceNote(
   platform: DataPlatform,
   hasRows: boolean

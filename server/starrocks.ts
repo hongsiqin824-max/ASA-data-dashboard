@@ -5,12 +5,14 @@ import type {
   DataPlatform,
   ExtendedRoiFields,
   KeywordRow,
+  NaturalDailyRow,
   RetainUvFields
 } from "./types";
 import {
   buildPlatformSourceRelation,
   platformKeywordSearchColumn
 } from "./platform-query-source";
+import { IOS_NATURAL_TABLE } from "./platform";
 import { beijingCompactDate, round, type RevenueMode } from "./shared";
 
 // StarRocks（MySQL 协议）连接池。账号/连接信息从环境变量读取（见 .env.local）。
@@ -957,13 +959,15 @@ async function fetchDataAsOfDate(params: LiveQueryParams) {
 }
 
 export async function fetchLiveData(params: LiveQueryParams) {
-  const [summaryRows, dailySummaryRows, adGroups, dataAsOfDate, history] = await Promise.all([
-    fetchSummaryRows(params),
-    fetchDailySummaryRows(params),
-    fetchAdGroups(params),
-    fetchDataAsOfDate(params),
-    fetchKeywordHistory(params)
-  ]);
+  const [summaryRows, dailySummaryRows, adGroups, dataAsOfDate, history, natural] =
+    await Promise.all([
+      fetchSummaryRows(params),
+      fetchDailySummaryRows(params),
+      fetchAdGroups(params),
+      fetchDataAsOfDate(params),
+      fetchKeywordHistory(params),
+      fetchNaturalDaily(params)
+    ]);
   const rows = summaryRows.map((row) => ({
     ...row,
     // 所有平台统一用全历史查询结果覆盖 firstDate/lastDate
@@ -974,8 +978,70 @@ export async function fetchLiveData(params: LiveQueryParams) {
     dailySummaryRows,
     dailyRows: [] as DailyKeywordRow[],
     adGroups,
-    dataAsOfDate
+    dataAsOfDate,
+    naturalDailyRows: natural.rows,
+    naturalDataAsOfDate: natural.dataAsOfDate
   };
+}
+
+// ===== iOS 自然量按天（hive.ads.ads_ad_ios_natural_user_di）=====
+// 表粒度：一天一行，剔除 ASA 归因后的 iPhone 新增设备及其留存。
+// 没有关键词/计划/消耗/收益，所以只按 day 分区裁剪，不套用 buildFilters 的其它筛选条件。
+const NATURAL_RETENTION_DAYS = [1, 3, 7, 14, 30, 60, 90, 180] as const;
+
+export function mapNaturalDailyRow(r: Record<string, unknown>): NaturalDailyRow {
+  return {
+    date: dbDay(r.report_date) ?? dbDay(r.day) ?? "",
+    activations: num(r.new_user_cnt),
+    registrations: num(r.new_register_cnt),
+    retainUv1d: nullableNum(r.retain_uv_1d),
+    retainUv3d: nullableNum(r.retain_uv_3d),
+    retainUv7d: nullableNum(r.retain_uv_7d),
+    retainUv14d: nullableNum(r.retain_uv_14d),
+    retainUv30d: nullableNum(r.retain_uv_30d),
+    retainUv60d: nullableNum(r.retain_uv_60d),
+    retainUv90d: nullableNum(r.retain_uv_90d),
+    retainUv180d: nullableNum(r.retain_uv_180d)
+  };
+}
+
+async function fetchNaturalDaily(params: LiveQueryParams): Promise<{
+  rows: NaturalDailyRow[];
+  dataAsOfDate: string | null;
+}> {
+  if (params.platform !== "iOS") return { rows: [], dataAsOfDate: null };
+
+  const retentionSelect = NATURAL_RETENTION_DAYS.map(
+    (day) => `retain_uv_${day}d`
+  ).join(", ");
+  try {
+    const [rowsResult, asOfResult] = await Promise.all([
+      getPool().query(
+        `SELECT day, report_date, new_user_cnt, new_register_cnt, ${retentionSelect}
+           FROM ${IOS_NATURAL_TABLE}
+          WHERE day BETWEEN ? AND ?
+          ORDER BY day`,
+        [params.startDate, params.endDate]
+      ),
+      getPool().query(
+        `SELECT MAX(day) AS data_as_of_date FROM ${IOS_NATURAL_TABLE} natural_max`
+      )
+    ]);
+    const list = rowsResult[0] as unknown as Record<string, unknown>[];
+    const asOfRow = (asOfResult[0] as unknown as Record<string, unknown>[])[0];
+    return {
+      rows: list.map(mapNaturalDailyRow),
+      dataAsOfDate: dbDay(asOfRow?.data_as_of_date)
+    };
+  } catch (error) {
+    // 自然量是 iOS 的附属数据源：它读失败（如账号无该表权限）不应拖垮整个 iOS 看板。
+    // 这里只记日志并返回空，前端「自然量」tab 显示暂无数据；主看板其余数据不受影响。
+    console.warn(
+      `iOS natural-user table ${IOS_NATURAL_TABLE} query failed:`,
+      error instanceof Error ? error.message : error
+    );
+    return { rows: [], dataAsOfDate: null };
+  }
 }
 
 export async function fetchLiveCampaigns(platform: DataPlatform) {

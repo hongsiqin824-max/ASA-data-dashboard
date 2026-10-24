@@ -26,7 +26,8 @@ import type {
   DailyKeywordRow,
   DataPlatform,
   DashboardResponse,
-  KeywordRow
+  KeywordRow,
+  NaturalDailyRow
 } from "./types";
 import {
   buildDashboardServerCacheKey,
@@ -217,7 +218,9 @@ app.get("/api/asa/keyword-roi", async (req, res) => {
         summary: computeSummary([]),
         rows: [],
         dailySummaryRows: [],
-        dailyRows: []
+        dailyRows: [],
+        naturalDailyRows: [],
+        naturalDataAsOfDate: null
       });
       return;
     }
@@ -226,6 +229,8 @@ app.get("/api/asa/keyword-roi", async (req, res) => {
   let filtered: KeywordRow[] = [];
   let filteredDailySummary: DailyCampaignRow[] = [];
   let filteredDaily: DailyKeywordRow[] = [];
+  let naturalDailyRows: NaturalDailyRow[] = [];
+  let naturalDataAsOfDate: string | null = null;
   let filterCampaigns: Array<{ id: string; name: string }> = campaigns;
   let filterAdGroups: Array<{ id: string; name: string }> = adGroups;
   let sourceNote = "未配置真实数据源，当前不展示演示数据";
@@ -254,6 +259,8 @@ app.get("/api/asa/keyword-roi", async (req, res) => {
       filterCampaigns = [];
       filterAdGroups = live.adGroups;
       dataAsOfDate = live.dataAsOfDate;
+      naturalDailyRows = live.naturalDailyRows;
+      naturalDataAsOfDate = live.naturalDataAsOfDate;
       sourceNote = platformSourceNote(platform, filtered.length > 0);
     } catch (error) {
       const message = error instanceof Error ? error.message : "未知错误";
@@ -297,7 +304,9 @@ app.get("/api/asa/keyword-roi", async (req, res) => {
     summary: normalizedSummary,
     rows: filtered,
     dailySummaryRows: filteredDailySummary,
-    dailyRows: filteredDaily
+    dailyRows: filteredDaily,
+    naturalDailyRows,
+    naturalDataAsOfDate
   };
 
   res.json(
@@ -622,7 +631,9 @@ async function prewarmPlatformDashboardCache(platform: DataPlatform) {
       summary: computeSummary(live.rows),
       rows: live.rows,
       dailySummaryRows: live.dailySummaryRows,
-      dailyRows: []
+      dailyRows: [],
+      naturalDailyRows: live.naturalDailyRows,
+      naturalDataAsOfDate: live.naturalDataAsOfDate
     };
     writeDashboardServerCache(cacheKey, endDate, response, "miss");
     console.log(

@@ -2,6 +2,16 @@
 
 公司内部投放 ROI 数据看板，当前支持 iOS ASA、鸿蒙和小红书投放数据。iOS 提供关键词/计划维度，鸿蒙提供任务/子任务维度，小红书按推广计划/日期维度展示成本、收益、转化及 D1-D7、D15、D30、总 ROI。
 
+## 这个项目能做什么
+
+- **多平台 ROI 看板**：在一个界面查看 iOS ASA、鸿蒙、小红书三端的成本、收益、转化与 D1-D7/D15/D30/总 ROI。
+- **多维度下钻**：iOS 支持关键词/计划维度，鸿蒙支持任务/子任务维度，小红书按推广计划/日期维度展示。
+- **留存展示与导出**：次日/3 日/7 日/14 日/30 日留存率展示，支持导出 CSV。
+- **AI 出价建议（仅 iOS）**：逐词调用大模型给出出价建议，带规则兜底、持久化缓存和预生成，进页面即秒开。
+- **iOS 自然量对照（仅 iOS）**：首页「自然量」tab，按天展示剔除 ASA 归因后的 iPhone 自然量激活/注册/留存，并与同日 ASA 激活/注册对照、给出自然量占比；支持导出 CSV。
+- **鸿蒙新增设备接口**：`GET /api/harmony/new-devices`，token 鉴权，按单天/区间返回鸿蒙新增设备明细（含 oaid），供外部做转化回传。
+- **真实数据原则**：只展示数仓返回的真实数据，缺失窗口不补值、不沿用前值，异常宁可显式报错也不返回残缺数据。
+
 ## 技术栈
 
 - 前端：React 19、TypeScript、Vite
@@ -55,6 +65,7 @@ LLM_MAX_TOKENS        # 可选，默认 8192
 
 # AI 出价建议缓存 / 预生成（均可选，有默认值）
 ASA_DB_TABLE_IOS_BID         # iOS 出价明细表，默认 hive.dwd.dwd_ad_asa_keyword_report_di
+ASA_DB_TABLE_IOS_NATURAL     # iOS 自然量按天表，默认 hive.ads.ads_ad_ios_natural_user_di
 ASA_ADVICE_CACHE_FILE        # 持久化缓存文件，默认 ./.cache/advice-cache.json
 ASA_ADVICE_CACHE_MINUTES     # 缓存 TTL，默认 360（6 小时）
 ASA_ADVICE_CACHE_MAX_ITEMS   # 缓存最大条目，默认 20000
@@ -66,6 +77,7 @@ ASA_ADVICE_PREGEN_CONCURRENCY# 预生成并发批数，默认 6
 
 ```text
 iOS：hive.ads.ads_ad_ios_asa_roi_di
+iOS 自然量（附属）：hive.ads.ads_ad_ios_natural_user_di
 鸿蒙：hive.ads.ads_ad_hm_roi_di
 小红书：hive.ads.ads_ad_xhs_roi_di
 ```
@@ -112,3 +124,39 @@ npm run pregenerate-advice
 
 注意：预生成必须和前端默认区间一致才能命中缓存，脚本已复用同一套「近 7 天 + 有消耗词
 筛选 + 场景三识别」逻辑（`src/lib/advice-scope.ts`），请勿单独修改其中一端。
+
+## 文件说明
+
+| 文件/目录 | 作用 |
+|---|---|
+| `src/` | 前端（React + Vite）：页面组件、UI 组件、数据处理 `lib/` |
+| `server/` | 后端（Express）：路由、StarRocks 取数、缓存、AI 建议、鸿蒙设备接口 |
+| `server/index.ts` | API 入口与路由（含 `/api/harmony/new-devices`） |
+| `server/starrocks.ts` | StarRocks 查询与字段映射 |
+| `sql/` | 口径确认与核心字段的探查 SQL |
+| `tests/` | 口径/契约/取数等单元测试（`npm run test`） |
+| `鸿蒙新增设备接口-交接与追溯记录.md` | 鸿蒙设备接口的需求、构造、注意事项与遗留项 |
+| `ASA部署与更新手册.md` | 生产部署与更新流程 |
+| `00_项目管理/` | 内部进度/交接/工作日志（非对外文档） |
+
+## 重要限制 / 前提
+
+- **数据有一天延迟**：数仓快照通常截至昨天/前天；查询晚于快照日的日期会显式报错，而非返回半截数据。
+- **鸿蒙无设备级广告归因**：鸿蒙新增设备接口返回的是「广告 + 自然量」混合设备，不是纯广告转化设备。
+- **AI 建议需配置大模型**：未配置 `LLM_*` 时「建议」tab 会报未配置。
+- **令牌保密**：鸿蒙设备接口令牌泄露等于设备数据裸奔，对接优先走 header `x-api-token`。
+- **环境文件不入库**：`.env.local` 含账号密码，禁止提交。
+
+## 后续规划
+
+- [ ] 鸿蒙设备接口付费类字段（卡在数据团队授权订单表 + 老板确认付费口径，详见交接记录第 8 节）。
+- [ ] 确认「转化」口径（激活 vs 付费）与回传目标平台/格式。
+
+---
+
+## 维护说明（改动请同步到这里）
+> 每次有功能/行为变更，在下方「变更记录」追加一行，保持本 README 与代码一致。
+
+### 变更记录
+- 2026-10-24：iOS 新增「自然量」tab，接入 `hive.ads.ads_ad_ios_natural_user_di`（自然量激活/注册/8 档留存），与同日 ASA 激活/注册对照并给出占比；数据随 `/api/asa/keyword-roi` 响应附带（`naturalDailyRows` / `naturalDataAsOfDate`），复用服务端缓存与查询/刷新语义；前端缓存版本升至 v13。
+- 2026-10-15：补全 README 能力概览、文件说明、重要限制与后续规划章节。

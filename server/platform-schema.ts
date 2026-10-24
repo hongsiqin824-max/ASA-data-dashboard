@@ -202,6 +202,31 @@ export const XHS_REQUIRED_SOURCE_COLUMNS = [
   "roi_30d"
 ] as const;
 
+// iOS 自然量按天表（hive.ads.ads_ad_ios_natural_user_di）必需列。
+// 这张表不是独立平台，只是 iOS 的附属数据源，故不走 compareRequiredColumns 的平台分支。
+export const IOS_NATURAL_REQUIRED_SOURCE_COLUMNS = [
+  "day",
+  "report_date",
+  "new_user_cnt",
+  "new_register_cnt",
+  "retain_uv_1d",
+  "retain_uv_3d",
+  "retain_uv_7d",
+  "retain_uv_14d",
+  "retain_uv_30d",
+  "retain_uv_60d",
+  "retain_uv_90d",
+  "retain_uv_180d"
+] as const;
+
+export function compareIosNaturalRequiredColumns(columns: readonly string[]) {
+  const available = new Set(columns);
+  const missing = IOS_NATURAL_REQUIRED_SOURCE_COLUMNS.filter(
+    (column) => !available.has(column)
+  );
+  return { ok: missing.length === 0, missing };
+}
+
 export function compareRequiredColumns(
   platform: DataPlatform,
   columns: readonly string[]

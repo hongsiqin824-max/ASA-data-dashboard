@@ -35,6 +35,8 @@ import { DailyCampaignTable } from "./DailyCampaignTable";
 import type { DailyCampaignTableSummary } from "./DailyCampaignTable";
 import { KeywordTable } from "./KeywordTable";
 import { AdviceTable, adviceKey } from "./AdviceTable";
+import { NaturalDailyTable } from "./NaturalDailyTable";
+import { buildNaturalCompareRows } from "../lib/natural-daily";
 import { Segmented } from "./ui/Segmented";
 import { PlanMultiSelect, type PlanOption, type PlanSelection } from "./ui/PlanMultiSelect";
 import {
@@ -43,7 +45,7 @@ import {
   selectScene3Rows
 } from "../lib/advice-scope";
 
-export type HomeView = "keywords" | "campaigns" | "daily" | "advice";
+export type HomeView = "keywords" | "campaigns" | "daily" | "advice" | "natural";
 export type KeywordListScope =
   | { type: "all" }
   | { type: "campaign"; campaignId: string; label: string }
@@ -371,9 +373,21 @@ export function CampaignListPage({
       : `当前区间共 ${formatNumber(dailyRows.length)} 天数据，按日核验成本、收益、ROI 与转化字段`;
   const adviceEnabled = query.platform === "iOS";
   const showingAdvice = adviceEnabled && view === "advice";
+  // 自然量 tab 仅 iOS：对照数据来自同一响应的 dailySummaryRows（已随当前筛选过滤）。
+  const naturalEnabled = query.platform === "iOS";
+  const showingNatural = naturalEnabled && view === "natural";
   const showingKeywords = ui.hasChildEntity && view === "keywords";
-  const showingCampaigns = !ui.hasChildEntity || (view === "campaigns" && !showingAdvice);
+  const showingCampaigns =
+    !ui.hasChildEntity || (view === "campaigns" && !showingAdvice && !showingNatural);
   const showingDaily = view === "daily";
+  const naturalRows = useMemo(
+    () => buildNaturalCompareRows(data?.naturalDailyRows ?? [], dailyRows),
+    [data?.naturalDailyRows, dailyRows]
+  );
+  const naturalSubtitle =
+    naturalRows.length === 0
+      ? "当前区间暂无自然量数据"
+      : `当前区间共 ${formatNumber(naturalRows.length)} 天自然量数据，与同日 ASA 激活/注册对照；留存率以自然量激活为分母`;
 
   // 全量「有消耗」关键词（cost>0），按消耗降序。用于展示与「生成全部」。
   const allCostRows = useMemo(
@@ -612,18 +626,22 @@ export function CampaignListPage({
 
   const title = showingAdvice
     ? "AI 出价建议"
-    : showingKeywords
-      ? ui.childEntity
-      : showingCampaigns
-        ? ui.parentEntity
-        : "日期";
+    : showingNatural
+      ? "自然量"
+      : showingKeywords
+        ? ui.childEntity
+        : showingCampaigns
+          ? ui.parentEntity
+          : "日期";
   const subtitle = showingAdvice
     ? `有消耗词共 ${formatNumber(allCostRows.length)} 个（已出建议 ${formatNumber(advices.size)} 个）${scene3Rows.length > 0 ? `，含场景三(曝光≥50 零消耗) ${formatNumber(scene3Rows.length)} 个` : ""}`
-    : showingKeywords
-      ? keywordSubtitle
-      : showingCampaigns
-        ? campaignSubtitle
-        : dailySubtitle;
+    : showingNatural
+      ? naturalSubtitle
+      : showingKeywords
+        ? keywordSubtitle
+        : showingCampaigns
+          ? campaignSubtitle
+          : dailySubtitle;
 
   return (
     <>
@@ -644,7 +662,9 @@ export function CampaignListPage({
                       ? "campaigns"
                       : value === "advice"
                         ? "advice"
-                        : "keywords";
+                        : value === "natural"
+                          ? "natural"
+                          : "keywords";
                 onViewChange(nextView);
               }}
               options={
@@ -655,6 +675,9 @@ export function CampaignListPage({
                       { value: "daily", label: "日期" },
                       ...(adviceEnabled
                         ? [{ value: "advice", label: "建议" }]
+                        : []),
+                      ...(naturalEnabled
+                        ? [{ value: "natural", label: "自然量" }]
                         : [])
                     ]
                   : [
@@ -851,6 +874,11 @@ export function CampaignListPage({
               isPregeneratedScope ? runFullAdvice(true) : runHeadAdvice(true)
             }
             onGenerateAll={runAllAdvice}
+          />
+        ) : showingNatural ? (
+          <NaturalDailyTable
+            rows={naturalRows}
+            latestDate={data?.naturalDataAsOfDate ?? data?.dataAsOfDate}
           />
         ) : showingKeywords ? (
           <KeywordTable

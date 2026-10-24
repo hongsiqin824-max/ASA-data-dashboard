@@ -1,7 +1,8 @@
 import type { QueryParams } from "./api";
 import type { DashboardResponse } from "./types";
 
-const CACHE_VERSION = 12;
+// v13：DashboardResponse 新增 naturalDailyRows / naturalDataAsOfDate（iOS 自然量）。
+const CACHE_VERSION = 13;
 const ITEM_PREFIX = `asa-roi-dashboard:v${CACHE_VERSION}:dashboard:`;
 const INDEX_KEY = `asa-roi-dashboard:v${CACHE_VERSION}:index`;
 const MAX_CACHE_ITEMS = 8;
@@ -75,6 +76,7 @@ function isDashboardResponse(value: unknown): value is DashboardResponse {
     Array.isArray(data.rows) &&
     Array.isArray(data.dailySummaryRows) &&
     Array.isArray(data.dailyRows) &&
+    Array.isArray(data.naturalDailyRows) &&
     typeof data.source === "object" &&
     typeof data.summary === "object"
   );

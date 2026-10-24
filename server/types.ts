@@ -10,5 +10,6 @@ export type {
   KeywordAdviceAction,
   AccountDiagnosisItem,
   KeywordStatus,
+  NaturalDailyRow,
   RetainUvFields
 } from "../src/lib/types";

@@ -310,6 +310,23 @@ export type DailyKeywordRow = RetainUvFields & ExtendedRoiFields & {
   d60Roi: number;
 };
 
+// iOS 自然量按天行（hive.ads.ads_ad_ios_natural_user_di）：剔除 ASA 归因后的 iPhone 新增设备。
+// 只有激活/注册/留存设备数，没有消耗、收益、关键词、计划等维度。
+// 留存字段为 null 表示数仓未返回；未到期窗口数仓返回 0，成熟度仍由前端按日期判断。
+export type NaturalDailyRow = {
+  date: string;
+  activations: number;
+  registrations: number;
+  retainUv1d: number | null;
+  retainUv3d: number | null;
+  retainUv7d: number | null;
+  retainUv14d: number | null;
+  retainUv30d: number | null;
+  retainUv60d: number | null;
+  retainUv90d: number | null;
+  retainUv180d: number | null;
+};
+
 export type DashboardResponse = {
   platform: DataPlatform;
   updatedAt: string;
@@ -373,4 +390,8 @@ export type DashboardResponse = {
   rows: KeywordRow[];
   dailySummaryRows: DailyCampaignRow[];
   dailyRows: DailyKeywordRow[];
+  // 仅 iOS 有值；其它平台为空数组。按日期升序。
+  naturalDailyRows: NaturalDailyRow[];
+  // 自然量表自身的最新数据日，用于自然量留存成熟度判断；非 iOS 为 null。
+  naturalDataAsOfDate: string | null;
 };
