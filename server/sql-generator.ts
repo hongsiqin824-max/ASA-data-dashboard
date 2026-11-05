@@ -21,9 +21,22 @@ export function buildSourceTableAuditSql(params: {
 }) {
   const isHarmony = params.platform === "HarmonyOS";
   const isXhs = params.platform === "Xiaohongshu";
-  const keywordColumn = isHarmony ? "task_name" : isXhs ? "campaign_name" : "keyword";
-  const campaignColumn = isHarmony ? "task_id" : "campaign_id";
-  const adGroupColumn = isHarmony ? "sub_task_id" : isXhs ? null : "ad_group_id";
+  const isBaidu = params.platform === "Baidu";
+  const keywordColumn = isHarmony
+    ? "task_name"
+    : isXhs
+      ? "campaign_name"
+      : isBaidu
+        ? "plan_name"
+        : "keyword";
+  const campaignColumn = isHarmony ? "task_id" : isBaidu ? "plan_id" : "campaign_id";
+  const adGroupColumn = isHarmony
+    ? "sub_task_id"
+    : isXhs
+      ? null
+      : isBaidu
+        ? "unit_id"
+        : "ad_group_id";
   const filters = [
     `day BETWEEN ${quoteSql(params.startDate)} AND ${quoteSql(params.endDate)}`
   ];

@@ -70,7 +70,8 @@ function isDashboardResponse(value: unknown): value is DashboardResponse {
   return (
     (data.platform === "iOS" ||
       data.platform === "HarmonyOS" ||
-      data.platform === "Xiaohongshu") &&
+      data.platform === "Xiaohongshu" ||
+      data.platform === "Baidu") &&
     typeof data.updatedAt === "string" &&
     (typeof data.dataAsOfDate === "string" || data.dataAsOfDate === null) &&
     Array.isArray(data.rows) &&

@@ -27,6 +27,7 @@ export type KeywordTableSummary = ExtendedRoiFields & {
   registrations: number;
   activationCost: number | null;
   registrationCost: number | null;
+  totalPayUv: number;
   // 关键词粒度的留存设备数直接求和；这不是跨关键词去重后的设备数。
   retainUv1d: number | null;
   retainUv2d: number | null;
@@ -246,6 +247,7 @@ export function summarizeKeywordRows(rows: KeywordAnalysisRow[]): KeywordTableSu
     registrations,
     activationCost: activations > 0 ? cost / activations : null,
     registrationCost: registrations > 0 ? cost / registrations : null,
+    totalPayUv: sum((row) => row.totalPayUv),
     retainUv1d: sumNullable((row) => row.retainUv1d),
     retainUv2d: sumNullable((row) => row.retainUv2d),
     retainUv3d: sumNullable((row) => row.retainUv3d),

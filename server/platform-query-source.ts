@@ -57,6 +57,50 @@ export function buildPlatformSourceRelation(platform: DataPlatform): string {
     FROM ${table})`;
   }
 
+  // 百度：推广计划 → campaign，推广单元 → ad_group / keyword（与鸿蒙 任务/子任务 同构）。
+  if (platform === "Baidu") {
+    const revenueWindows = roiWindows.flatMap((window) => [
+      `revenue_${window}`,
+      `revenue_vip_${window}`,
+      `revenue_charge_${window}`,
+      `0 AS ad_revenue_${window}`,
+      `roi_${window}`
+    ]);
+
+    return `(SELECT
+      day,
+      report_date,
+      plan_id AS campaign_id,
+      plan_name AS campaign_name,
+      unit_id AS ad_group_id,
+      unit_name AS ad_group_name,
+      unit_id AS keyword_id,
+      unit_name AS keyword,
+      impression AS impressions,
+      click AS taps,
+      0 AS tap_installs,
+      0 AS tap_new_downloads,
+      0 AS tap_redownloads,
+      0 AS total_installs,
+      0 AS total_new_downloads,
+      0 AS total_redownloads,
+      new_user_cnt,
+      new_register_cnt,
+      spend,
+      cost_per_activation,
+      cost_per_register,
+      pay_uv,
+      pay_uv_1d,
+      cost_per_pay,
+      revenue_total,
+      revenue_vip_total,
+      revenue_charge_total,
+      0 AS ad_revenue_total,
+      roi_total,
+      ${revenueWindows.join(",\n      ")}
+    FROM ${table})`;
+  }
+
   const revenueWindows = roiWindows.flatMap((window) => [
     `revenue_${window}`,
     `revenue_vip_${window}`,

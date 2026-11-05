@@ -81,15 +81,15 @@ export function DailyKeywordTable({
                 <th>总新下载</th>
                 <th>总重下载</th>
               </>
-            ) : (
+            ) : ui.hasInstallMetric ? (
               <th>下载</th>
-            )}
+            ) : null}
             <th>激活</th>
             <th>注册</th>
             <th>总消耗</th>
             <th>单激活成本</th>
             <th>单注册成本</th>
-            <th>付费率</th>
+            {ui.hasPaymentRate ? <th>付费率</th> : null}
             {showRetention
               ? RETENTION_COLUMNS.map(({ key, label }) => (
                   <th key={key} title="留存设备数；同一设备可能在多个关键词中重复计数">
@@ -151,15 +151,15 @@ export function DailyKeywordTable({
                   <td>{formatNumber(row.totalNewDownloads)}</td>
                   <td>{formatNumber(row.totalRedownloads)}</td>
                 </>
-              ) : (
+              ) : ui.hasInstallMetric ? (
                 <td>{formatNumber(row.installs)}</td>
-              )}
+              ) : null}
               <td>{formatNumber(row.activations)}</td>
               <td>{formatNumber(row.registrations)}</td>
               <td>{formatCurrency(row.cost)}</td>
               <td>{formatCurrency(row.activationCost)}</td>
               <td>{formatCurrency(row.registrationCost)}</td>
-              <td>{formatPercent(row.paymentRate)}</td>
+              {ui.hasPaymentRate ? <td>{formatPercent(row.paymentRate)}</td> : null}
               {showRetention
                 ? RETENTION_COLUMNS.map(({ day, key }) => (
                     <td key={key}>

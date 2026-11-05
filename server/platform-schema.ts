@@ -202,6 +202,40 @@ export const XHS_REQUIRED_SOURCE_COLUMNS = [
   "roi_30d"
 ] as const;
 
+// 百度营销单元级 ROI 日报（hive.ads.ads_ad_baidu_roi_di）：计划 → 单元，无关键词/留存/广告收入。
+export const BAIDU_REQUIRED_SOURCE_COLUMNS = [
+  "day",
+  "report_date",
+  "advertiser_id",
+  "plan_id",
+  "plan_name",
+  "unit_id",
+  "unit_name",
+  "impression",
+  "click",
+  "spend",
+  "new_user_cnt",
+  "new_register_cnt",
+  "cost_per_activation",
+  "cost_per_register",
+  "pay_uv",
+  "pay_uv_1d",
+  "cost_per_pay",
+  "revenue_total",
+  "revenue_vip_total",
+  "revenue_charge_total",
+  "roi_total",
+  ...(["1d", "2d", "3d", "4d", "5d", "6d", "7d", "15d", "30d", "60d"] as const).flatMap(
+    (window) =>
+      [
+        `revenue_${window}`,
+        `revenue_vip_${window}`,
+        `revenue_charge_${window}`,
+        `roi_${window}`
+      ] as const
+  )
+] as const;
+
 // iOS 自然量按天表（hive.ads.ads_ad_ios_natural_user_di）必需列。
 // 这张表不是独立平台，只是 iOS 的附属数据源，故不走 compareRequiredColumns 的平台分支。
 export const IOS_NATURAL_REQUIRED_SOURCE_COLUMNS = [
@@ -232,12 +266,14 @@ export function compareRequiredColumns(
   columns: readonly string[]
 ) {
   const available = new Set(columns);
-  const required =
+  const required: readonly string[] =
     platform === "HarmonyOS"
       ? HARMONY_REQUIRED_SOURCE_COLUMNS
       : platform === "Xiaohongshu"
         ? XHS_REQUIRED_SOURCE_COLUMNS
-        : REQUIRED_SOURCE_COLUMNS;
+        : platform === "Baidu"
+          ? BAIDU_REQUIRED_SOURCE_COLUMNS
+          : REQUIRED_SOURCE_COLUMNS;
   const missing = required.filter(
     (column) => !available.has(column)
   );

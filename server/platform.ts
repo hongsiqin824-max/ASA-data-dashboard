@@ -2,7 +2,7 @@ import type { DataPlatform } from "./types";
 
 export type PlatformSource = {
   platform: DataPlatform;
-  label: "iOS" | "鸿蒙" | "小红书";
+  label: "iOS" | "鸿蒙" | "小红书" | "百度";
   table: string;
 };
 
@@ -31,12 +31,23 @@ const sources: Record<DataPlatform, PlatformSource> = {
     label: "小红书",
     table:
       process.env.ASA_DB_TABLE_XHS ?? "hive.ads.ads_ad_xhs_roi_di"
+  },
+  Baidu: {
+    platform: "Baidu",
+    label: "百度",
+    table:
+      process.env.ASA_DB_TABLE_BAIDU ?? "hive.ads.ads_ad_baidu_roi_di"
   }
 };
 
 export function parseDataPlatform(value: unknown): DataPlatform | null {
   if (value === undefined || value === null || value === "") return "iOS";
-  if (value === "iOS" || value === "HarmonyOS" || value === "Xiaohongshu") {
+  if (
+    value === "iOS" ||
+    value === "HarmonyOS" ||
+    value === "Xiaohongshu" ||
+    value === "Baidu"
+  ) {
     return value;
   }
   return null;

@@ -939,9 +939,9 @@ async function fetchAdGroups(params: LiveQueryParams) {
 
 async function fetchDataAsOfDate(params: LiveQueryParams) {
   const table = buildPlatformSourceRelation(params.platform);
-  // 小红书：用 day <= 北京今日 做分区裁剪，避免全表扫描，
+  // 小红书/百度：用 day <= 北京今日 做分区裁剪，避免全表扫描，
   // 同时不受当前用户查询区间限制，确保返回真实最新分区日期。
-  if (params.platform === "Xiaohongshu") {
+  if (params.platform === "Xiaohongshu" || params.platform === "Baidu") {
     const today = beijingCompactDate(0);
     const [result] = await getPool().query(
       `SELECT MAX(day) AS data_as_of_date FROM ${table} source_max WHERE day <= ?`,

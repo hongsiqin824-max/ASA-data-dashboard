@@ -50,7 +50,13 @@ export function KeywordDetailPage({
           <Metric
             label="投放消耗"
             value={formatCurrency(keyword.cost)}
-            trend={`${ui.installMetric} ${formatNumber(keyword.installs)}`}
+            trend={
+              ui.hasInstallMetric
+                ? `${ui.installMetric} ${formatNumber(keyword.installs)}`
+                : `激活 ${formatNumber(keyword.activations)} · 注册 ${formatNumber(
+                    keyword.registrations
+                  )}`
+            }
             icon={<BarChart3 size={19} />}
           />
           <Metric

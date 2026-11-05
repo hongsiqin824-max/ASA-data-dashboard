@@ -53,6 +53,7 @@ ASA_DB_PASSWORD
 ASA_DB_TABLE_IOS
 ASA_DB_TABLE_HARMONY
 ASA_DB_TABLE_XHS
+ASA_DB_TABLE_BAIDU
 ASA_BASE_URL
 ASA_HOST
 API_PORT
@@ -80,6 +81,7 @@ iOS：hive.ads.ads_ad_ios_asa_roi_di
 iOS 自然量（附属）：hive.ads.ads_ad_ios_natural_user_di
 鸿蒙：hive.ads.ads_ad_hm_roi_di
 小红书：hive.ads.ads_ad_xhs_roi_di
+百度：hive.ads.ads_ad_baidu_roi_di（推广计划 → 推广单元，无关键词/留存/广告收入）
 ```
 
 项目只展示数仓查询返回的真实数据，不对缺失 ROI 窗口补值或沿用前一窗口数据。小红书源表没有广告组、关键词或子任务字段，因此页面和导出不会构造这些下级维度。
@@ -158,5 +160,6 @@ npm run pregenerate-advice
 > 每次有功能/行为变更，在下方「变更记录」追加一行，保持本 README 与代码一致。
 
 ### 变更记录
+- 2026-11-04：新增第四个平台「百度」（`platform=Baidu`），接入 `hive.ads.ads_ad_baidu_roi_di`；推广计划映射为计划、推广单元映射为下级（同鸿蒙任务/子任务），付费 UV 与其他平台一致取 `pay_uv`；表中无安装数，付费率列改显示付费 UV；支持列表/日期视图与 CSV 导出，纳入 `check:platform-schema` 与启动预热。
 - 2026-10-24：iOS 新增「自然量」tab，接入 `hive.ads.ads_ad_ios_natural_user_di`（自然量激活/注册/8 档留存），与同日 ASA 激活/注册对照并给出占比；数据随 `/api/asa/keyword-roi` 响应附带（`naturalDailyRows` / `naturalDataAsOfDate`），复用服务端缓存与查询/刷新语义；前端缓存版本升至 v13。
 - 2026-10-15：补全 README 能力概览、文件说明、重要限制与后续规划章节。

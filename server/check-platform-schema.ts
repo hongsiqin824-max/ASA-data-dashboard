@@ -11,7 +11,12 @@ import {
 } from "./platform-schema";
 import type { DataPlatform } from "./types";
 
-const platforms: readonly DataPlatform[] = ["iOS", "HarmonyOS", "Xiaohongshu"];
+const platforms: readonly DataPlatform[] = [
+  "iOS",
+  "HarmonyOS",
+  "Xiaohongshu",
+  "Baidu"
+];
 
 const connection = await mysql.createConnection({
   host: process.env.ASA_DB_HOST ?? "172.21.0.148",

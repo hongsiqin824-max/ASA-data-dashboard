@@ -51,3 +51,21 @@ test("小红书查询只用真实计划字段，内部空键不构造业务子�
   assert.doesNotMatch(source, /task_id|sub_task_id|download AS total_installs/);
   assert.doesNotMatch(source, /ads_ad_ios_asa_roi_di|ads_ad_hm_roi_di/);
 });
+
+test("百度查询把推广计划/推广单元映射为统一内部列", () => {
+  const source = buildPlatformSourceRelation("Baidu");
+
+  assert.match(source, /plan_id AS campaign_id/);
+  assert.match(source, /plan_name AS campaign_name/);
+  assert.match(source, /unit_id AS ad_group_id/);
+  assert.match(source, /unit_id AS keyword_id/);
+  assert.match(source, /unit_name AS keyword/);
+  assert.match(source, /impression AS impressions/);
+  // 与 iOS / 鸿蒙 / 小红书 一致取 pay_uv，不取 pay_uv_total
+  assert.match(source, /pay_uv,/);
+  assert.doesNotMatch(source, /pay_uv_total/);
+  assert.match(source, /revenue_60d/);
+  assert.match(source, /hive\.ads\.ads_ad_baidu_roi_di/);
+  assert.doesNotMatch(source, /task_id|ads_ad_xhs_roi_di|ads_ad_hm_roi_di/);
+  assert.equal(platformKeywordSearchColumn("Baidu"), "campaign_name");
+});

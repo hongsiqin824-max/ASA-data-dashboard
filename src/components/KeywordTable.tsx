@@ -75,6 +75,7 @@ type SortKey =
   | "activationCost"
   | "registrationCost"
   | "paymentRate"
+  | "totalPayUv"
   | RoiWindowKey
   | "roi"
   | "adRevenue"
@@ -309,15 +310,20 @@ export function KeywordTable({
                   <SortableHeader label="总新下载" sortKey="totalNewDownloads" sort={sort} onSort={toggleSort} />
                   <SortableHeader label="总重下载" sortKey="totalRedownloads" sort={sort} onSort={toggleSort} />
                 </>
-              ) : (
+              ) : ui.hasInstallMetric ? (
                 <SortableHeader label="下载" sortKey="installs" sort={sort} onSort={toggleSort} />
-              )}
+              ) : null}
               <SortableHeader label="激活" sortKey="activations" sort={sort} onSort={toggleSort} />
               <SortableHeader label="注册" sortKey="registrations" sort={sort} onSort={toggleSort} />
               <SortableHeader label="消耗" sortKey="cost" sort={sort} onSort={toggleSort} />
               <SortableHeader label="单激活成本" sortKey="activationCost" sort={sort} onSort={toggleSort} />
               <SortableHeader label="单注册成本" sortKey="registrationCost" sort={sort} onSort={toggleSort} />
-              <SortableHeader label="付费率" sortKey="paymentRate" sort={sort} onSort={toggleSort} />
+              <SortableHeader
+                label={ui.hasPaymentRate ? "付费率" : "付费UV"}
+                sortKey={ui.hasPaymentRate ? "paymentRate" : "totalPayUv"}
+                sort={sort}
+                onSort={toggleSort}
+              />
               {showRetention
                 ? RETENTION_COLUMNS.map(({ key, label }) => (
                     <th key={key} title="关键词留存设备数；同一设备可能在多个关键词中重复计数">
@@ -383,15 +389,15 @@ export function KeywordTable({
                   <td>{formatNumber(summary.totalNewDownloads)}</td>
                   <td>{formatNumber(summary.totalRedownloads)}</td>
                 </>
-              ) : (
+              ) : ui.hasInstallMetric ? (
                 <td>{formatNumber(summary.installs)}</td>
-              )}
+              ) : null}
               <td>{formatNumber(summary.activations)}</td>
               <td>{formatNumber(summary.registrations)}</td>
               <td>{formatCurrency(summary.cost)}</td>
               <td>{formatOptionalCurrency(summary.activationCost)}</td>
               <td>{formatOptionalCurrency(summary.registrationCost)}</td>
-              <td>-</td>
+              <td>{ui.hasPaymentRate ? "-" : formatNumber(summary.totalPayUv)}</td>
               {showRetention
                 ? RETENTION_COLUMNS.map(({ day, key }) => (
                     <td key={key} title="关键词留存合计，未跨关键词去重">
@@ -484,15 +490,19 @@ export function KeywordTable({
                     <td>{formatNumber(row.totalNewDownloads)}</td>
                     <td>{formatNumber(row.totalRedownloads)}</td>
                   </>
-                ) : (
+                ) : ui.hasInstallMetric ? (
                   <td>{formatNumber(row.installs)}</td>
-                )}
+                ) : null}
                 <td>{formatNumber(row.activations)}</td>
                 <td>{formatNumber(row.registrations)}</td>
                 <td>{formatCurrency(row.cost)}</td>
                 <td>{formatOptionalCurrency(row.activationCost)}</td>
                 <td>{formatOptionalCurrency(row.registrationCost)}</td>
-                <td>{formatPercent(row.paymentRate)}</td>
+                <td>
+                  {ui.hasPaymentRate
+                    ? formatPercent(row.paymentRate)
+                    : formatNumber(row.totalPayUv)}
+                </td>
                 {showRetention
                   ? RETENTION_COLUMNS.map(({ day, key }) => (
                       <td key={key}>

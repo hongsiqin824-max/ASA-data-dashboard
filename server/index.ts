@@ -40,7 +40,7 @@ import { isLlmConfigured } from "./llm";
 const app = express();
 const port = Number(process.env.API_PORT ?? 4173);
 const sourceMode = parseSourceMode(process.env.ASA_DATA_MODE);
-const SUPPORTED_PLATFORM_MESSAGE = "platform 仅支持 iOS、HarmonyOS 或 Xiaohongshu";
+const SUPPORTED_PLATFORM_MESSAGE = "platform 仅支持 iOS、HarmonyOS、Xiaohongshu 或 Baidu";
 const basePath = (() => {
   try {
     return new URL(process.env.ASA_BASE_URL ?? "http://127.0.0.1:4173").pathname.replace(
@@ -560,7 +560,7 @@ function dashedCompactDate(compact: string) {
 }
 
 function defaultRangeForPlatform(platform: DataPlatform) {
-  return platform === "Xiaohongshu"
+  return platform === "Xiaohongshu" || platform === "Baidu"
     ? { startDate: beijingCompactDate(-6), endDate: beijingCompactDate(0) }
     : { startDate: "20260525", endDate: "20260624" };
 }
@@ -684,7 +684,8 @@ app.listen(port, host, () => {
       for (const platform of [
         "iOS",
         "HarmonyOS",
-        "Xiaohongshu"
+        "Xiaohongshu",
+        "Baidu"
       ] satisfies DataPlatform[]) {
         await prewarmPlatformDashboardCache(platform);
       }

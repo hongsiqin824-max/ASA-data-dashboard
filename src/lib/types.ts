@@ -1,5 +1,5 @@
 export type KeywordStatus = "scaling" | "observe" | "pause" | "new";
-export type DataPlatform = "iOS" | "HarmonyOS" | "Xiaohongshu";
+export type DataPlatform = "iOS" | "HarmonyOS" | "Xiaohongshu" | "Baidu";
 
 // AI 出价建议：针对单个关键词，由大模型基于历史投放数据给出。
 // action 对应 ASA 出价工具文档的四类场景：up(小幅提价) / down(降价控本) /

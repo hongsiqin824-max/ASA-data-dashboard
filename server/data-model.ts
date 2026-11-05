@@ -85,6 +85,25 @@ export function dataModelForPlatform(platform: DataPlatform, table: string) {
     } as const;
   }
 
+  if (platform === "Baidu") {
+    return {
+      version: "baidu-roi-unit-model-2026-11-04",
+      formula: "ROI =（会员收入 + 充值收入）/ 百度广告花费",
+      grain: ["plan", "unit", "day"],
+      currency: "RMB",
+      attributionWindow: "由百度 ROI 成品表字段定义",
+      tables: [
+        {
+          role: "source",
+          name: table,
+          partition: "day",
+          grain: "plan x unit x day"
+        }
+      ],
+      unresolvedItems: []
+    } as const;
+  }
+
   return {
     version: "hm-roi-task-model-2026-07-18",
     formula: "ROI = 归因收入 / 广告花费",

@@ -24,7 +24,12 @@ function statusCopy({
   const elapsed = loadState.startedAt ? now - loadState.startedAt : 0;
   const rowCount = data ? data.rows.length : 0;
   const serverCache = data?.source.cache;
-  const rowEntity = data?.platform === "Xiaohongshu" ? "推广计划" : "关键词";
+  const rowEntity =
+    data?.platform === "Xiaohongshu"
+      ? "推广计划"
+      : data?.platform === "Baidu"
+        ? "推广单元"
+        : "关键词";
 
   if (loadState.isFetching && data && loadState.fromCache) {
     return {
