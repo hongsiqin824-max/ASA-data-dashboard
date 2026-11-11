@@ -2,7 +2,8 @@ import type { QueryParams } from "./api";
 import type { DashboardResponse } from "./types";
 
 // v14：NaturalDailyRow 新增服务端全量 asaActivations / asaRegistrations，旧缓存缺字段须作废。
-const CACHE_VERSION = 14;
+// v15：百度从推广单元粒度改为关键词粒度，旧缓存里 keyword 列存的是单元名，须作废。
+const CACHE_VERSION = 15;
 const ITEM_PREFIX = `asa-roi-dashboard:v${CACHE_VERSION}:dashboard:`;
 const INDEX_KEY = `asa-roi-dashboard:v${CACHE_VERSION}:index`;
 const MAX_CACHE_ITEMS = 8;

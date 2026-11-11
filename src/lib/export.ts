@@ -69,13 +69,13 @@ export function exportCampaignRows(rows: CampaignRow[], platform: DataPlatform) 
     downloadCsv(
       "baidu-plan-roi-summary.csv",
       [
-        "推广计划ID", "推广计划名", "推广单元数", "展示", "点击", "点击率",
+        "计划ID", "计划名", "单元数", "关键词数", "展示", "点击", "点击率",
         "激活", "注册", "消耗", "付费UV", "会员收入", "充值收入",
         "付费收入", "总收益", "总ROI", "D1 ROI", "D2 ROI", "D3 ROI",
         "D4 ROI", "D5 ROI", "D6 ROI", "D7 ROI", "D15 ROI", "D30 ROI", "D60 ROI", "状态"
       ],
       rows.map((row) => [
-        row.campaignId, row.label, row.adGroupCount, row.impressions, row.taps,
+        row.campaignId, row.label, row.adGroupCount, row.keywordCount, row.impressions, row.taps,
         row.ttr, row.activations, row.registrations, row.cost,
         row.totalPayUv, row.vipRevenue, row.rechargeRevenue,
         row.payRevenue, row.totalRevenue, row.roi, row.d1Roi, row.d2Roi,
@@ -187,17 +187,18 @@ export function exportCampaignRows(rows: CampaignRow[], platform: DataPlatform) 
 export function exportKeywordRows(rows: KeywordRow[], platform: DataPlatform) {
   if (platform === "Baidu") {
     downloadCsv(
-      "baidu-unit-roi-summary.csv",
+      "baidu-keyword-roi-summary.csv",
       [
-        "推广单元ID", "推广单元名", "推广计划ID", "推广计划名", "展示", "点击", "点击率",
+        "关键词ID", "关键词", "计划ID", "计划名", "单元ID", "单元名",
+        "展示", "点击", "点击率",
         "激活", "注册", "消耗", "付费UV", "会员收入", "充值收入",
         "付费收入", "总收益", "总ROI", "D1 ROI", "D2 ROI", "D3 ROI",
         "D4 ROI", "D5 ROI", "D6 ROI", "D7 ROI", "D15 ROI", "D30 ROI", "D60 ROI", "状态"
       ],
       rows.map((row) => [
-        row.keywordId, row.keyword, row.campaignId, row.campaignName, row.impressions,
-        row.taps, row.ttr, row.activations, row.registrations, row.cost,
-        row.totalPayUv, row.vipRevenue, row.rechargeRevenue,
+        row.keywordId, row.keyword, row.campaignId, row.campaignName, row.adGroupId,
+        row.adGroupName, row.impressions, row.taps, row.ttr, row.activations,
+        row.registrations, row.cost, row.totalPayUv, row.vipRevenue, row.rechargeRevenue,
         row.payRevenue, row.totalRevenue, row.roi, row.d1Roi, row.d2Roi,
         row.d3Roi, row.d4Roi, row.d5Roi, row.d6Roi, row.d7Roi, row.d15Roi,
         row.d30Roi, row.d60Roi, statusMeta[row.status].label
@@ -345,7 +346,8 @@ export function exportDailyRows(
     downloadCsv(
       `baidu-${keyword}-daily-detail.csv`,
       [
-        "日期", "推广单元ID", "推广单元名", "推广计划ID", "推广计划名", "展示", "点击",
+        "日期", "关键词ID", "关键词", "计划ID", "计划名", "单元ID",
+        "单元名", "展示", "点击",
         "点击率", "激活", "注册", "总消耗", "单激活成本", "单注册成本",
         "付费UV", "1日付费UV", "单付费成本", "会员收入", "充值收入", "付费收入",
         "总收益", "总ROI", "1日ROI", "2日ROI", "3日ROI", "4日ROI", "5日ROI",
@@ -353,9 +355,9 @@ export function exportDailyRows(
       ],
       rows.map((row) => [
         row.date, row.keywordId, row.keyword, row.campaignId, row.campaignName,
-        row.impressions, row.taps, row.ttr, row.activations, row.registrations,
-        row.cost, row.activationCost, row.registrationCost,
-        row.totalPayUv, row.d1PayUv, row.payCost ?? "", row.vipRevenue,
+        row.adGroupId, row.adGroupName, row.impressions, row.taps, row.ttr,
+        row.activations, row.registrations, row.cost, row.activationCost,
+        row.registrationCost, row.totalPayUv, row.d1PayUv, row.payCost ?? "", row.vipRevenue,
         row.rechargeRevenue, row.payRevenue, row.totalRevenue, row.roi, row.d1Roi,
         row.d2Roi, row.d3Roi, row.d4Roi, row.d5Roi, row.d6Roi, row.d7Roi,
         row.d15Roi, row.d30Roi, row.d60Roi
@@ -563,7 +565,7 @@ export function exportDailySummaryRows(
     downloadCsv(
       "baidu-daily-roi-summary.csv",
       [
-        "日期", "推广单元数", "展示", "点击", "点击率", "激活", "注册",
+        "日期", "关键词数", "展示", "点击", "点击率", "激活", "注册",
         "总消耗", "付费UV", "会员收入", "充值收入", "付费收入",
         "总收益", "总ROI", "1日ROI", "2日ROI", "3日ROI", "4日ROI",
         "5日ROI", "6日ROI", "7日ROI", "15日ROI", "30日ROI", "60日ROI"

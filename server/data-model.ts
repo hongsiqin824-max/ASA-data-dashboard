@@ -87,9 +87,9 @@ export function dataModelForPlatform(platform: DataPlatform, table: string) {
 
   if (platform === "Baidu") {
     return {
-      version: "baidu-roi-unit-model-2026-11-04",
+      version: "baidu-roi-keyword-model-2026-11-10",
       formula: "ROI =（会员收入 + 充值收入）/ 百度广告花费",
-      grain: ["plan", "unit", "day"],
+      grain: ["plan", "unit", "keyword", "day"],
       currency: "RMB",
       attributionWindow: "由百度 ROI 成品表字段定义",
       tables: [
@@ -97,7 +97,7 @@ export function dataModelForPlatform(platform: DataPlatform, table: string) {
           role: "source",
           name: table,
           partition: "day",
-          grain: "plan x unit x day"
+          grain: "plan x unit x keyword x day"
         }
       ],
       unresolvedItems: []

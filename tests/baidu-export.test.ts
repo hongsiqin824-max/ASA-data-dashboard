@@ -57,9 +57,9 @@ function fakeRow<T>(): T {
 }
 
 const cases = [
-  ["推广计划汇总", () => exportCampaignRows([fakeRow<CampaignRow>()], "Baidu")],
-  ["推广单元汇总", () => exportKeywordRows([fakeRow<KeywordRow>()], "Baidu")],
-  ["单元日明细", () => exportDailyRows([fakeRow<DailyKeywordRow>()], "x", "Baidu")],
+  ["计划汇总", () => exportCampaignRows([fakeRow<CampaignRow>()], "Baidu")],
+  ["关键词汇总", () => exportKeywordRows([fakeRow<KeywordRow>()], "Baidu")],
+  ["关键词日明细", () => exportDailyRows([fakeRow<DailyKeywordRow>()], "x", "Baidu")],
   ["日期汇总", () => exportDailySummaryRows([fakeRow<DailyCampaignRow>()], "Baidu")]
 ] as const;
 
@@ -71,8 +71,21 @@ for (const [name, run] of cases) {
     assert.equal(body.length, headers.length);
     assert.ok(headers.includes("付费UV"));
     assert.equal(
-      headers.some((h) => /付费率|下载|安装|关键词|留存|广告收入|LTV/.test(h)),
+      headers.some((h) => /付费率|下载|安装|留存|广告收入|LTV/.test(h)),
       false
     );
   });
 }
+
+test("百度关键词汇总 / 日明细导出带关键词和单元两层，表头用简称", () => {
+  for (const run of [cases[1][1], cases[2][1]]) {
+    const [headers] = captureCsv(run).lines;
+    for (const column of ["关键词ID", "关键词", "单元ID", "单元名", "计划名"]) {
+      assert.ok(headers.includes(column), column);
+    }
+    assert.equal(headers.some((h) => h.includes("推广")), false);
+  }
+  const campaignHeaders = captureCsv(cases[0][1]).lines[0];
+  assert.ok(campaignHeaders.includes("单元数"));
+  assert.ok(campaignHeaders.includes("关键词数"));
+});

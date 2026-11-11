@@ -69,6 +69,20 @@ test("鸿蒙任务列排在子任务前并作为首列，iOS 保持原顺序", (
   assert.deepEqual(keywordEntityOrder("iOS"), ["child", "parent"]);
 });
 
+test("百度按 iOS 样式：关键词在前，单元单独成列，不带 iOS 安装细分", () => {
+  const ui = platformUi("Baidu");
+
+  assert.equal(ui.parentEntity, "计划");
+  assert.equal(ui.childEntity, "关键词");
+  assert.equal(ui.adGroupEntity, "单元");
+  assert.equal(ui.hasIosInstallBreakdown, false);
+  assert.deepEqual(keywordEntityOrder("Baidu"), ["child", "parent"]);
+  // 广告组那一层只有 iOS / 百度有
+  assert.equal(platformUi("iOS").adGroupEntity, "广告组");
+  assert.equal(platformUi("HarmonyOS").adGroupEntity, null);
+  assert.equal(platformUi("Xiaohongshu").adGroupEntity, null);
+});
+
 test("请求平台与响应平台不一致时拒绝渲染", () => {
   assert.doesNotThrow(() => ensurePlatformResponse("HarmonyOS", "HarmonyOS"));
   assert.throws(

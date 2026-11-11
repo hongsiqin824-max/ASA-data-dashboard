@@ -66,9 +66,9 @@ export function DailyKeywordTable({
         <thead>
           <tr>
             <th>日期</th>
-            {ui.hasIosInstallBreakdown ? <th>广告组</th> : <th>{ui.parentEntity}</th>}
+            {ui.adGroupEntity ? <th>{ui.adGroupEntity}</th> : <th>{ui.parentEntity}</th>}
             <th>{ui.childEntity}ID</th>
-            {ui.hasIosInstallBreakdown ? <th>关键词</th> : null}
+            {ui.adGroupEntity ? <th>{ui.childEntity}</th> : null}
             <th>展示</th>
             <th>点击</th>
             <th>点击率</th>
@@ -136,9 +136,9 @@ export function DailyKeywordTable({
           {rows.map((row) => (
             <tr key={`${row.date}-${row.campaignId}-${row.adGroupId}-${row.keywordId}`}>
               <td className="date-cell">{row.date}</td>
-              <td>{ui.hasIosInstallBreakdown ? row.adGroupName : row.campaignName}</td>
+              <td>{ui.adGroupEntity ? row.adGroupName || row.adGroupId : row.campaignName}</td>
               <td>{row.keywordId}</td>
-              {ui.hasIosInstallBreakdown ? <td className="daily-keyword">{row.keyword}</td> : null}
+              {ui.adGroupEntity ? <td className="daily-keyword">{row.keyword}</td> : null}
               <td>{formatNumber(row.impressions)}</td>
               <td>{formatNumber(row.taps)}</td>
               <td>{formatPercent(row.ttr)}</td>

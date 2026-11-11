@@ -276,9 +276,11 @@ export function FilterBar({
             aria-label={ui.hasChildEntity ? ui.childEntity : ui.parentEntity}
             type="search"
             placeholder={
-              ui.hasChildEntity
-                ? `搜索${ui.parentEntity}名称`
-                : "搜索计划名 / ID"
+              query.platform === "Baidu"
+                ? `搜索${ui.childEntity} / ${ui.parentEntity}名称`
+                : ui.hasChildEntity
+                  ? `搜索${ui.parentEntity}名称`
+                  : "搜索计划名 / ID"
             }
             value={draft.keyword}
             onInput={(event) => updateDraft({ keyword: event.currentTarget.value })}

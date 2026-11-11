@@ -26,9 +26,7 @@ export function buildSourceTableAuditSql(params: {
     ? "task_name"
     : isXhs
       ? "campaign_name"
-      : isBaidu
-        ? "plan_name"
-        : "keyword";
+      : "keyword";
   const campaignColumn = isHarmony ? "task_id" : isBaidu ? "plan_id" : "campaign_id";
   const adGroupColumn = isHarmony
     ? "sub_task_id"
@@ -44,7 +42,9 @@ export function buildSourceTableAuditSql(params: {
     filters.push(
       isXhs
         ? `(${keywordColumn} LIKE concat('%', ${quoteSql(params.keyword)}, '%') OR campaign_id LIKE concat('%', ${quoteSql(params.keyword)}, '%'))`
-        : `${keywordColumn} LIKE concat('%', ${quoteSql(params.keyword)}, '%')`
+        : isBaidu
+          ? `(${keywordColumn} LIKE concat('%', ${quoteSql(params.keyword)}, '%') OR plan_name LIKE concat('%', ${quoteSql(params.keyword)}, '%'))`
+          : `${keywordColumn} LIKE concat('%', ${quoteSql(params.keyword)}, '%')`
     );
   }
   if (params.campaignId) {

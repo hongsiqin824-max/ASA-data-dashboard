@@ -10,7 +10,7 @@ import type {
 } from "./types";
 import {
   buildPlatformSourceRelation,
-  platformKeywordSearchColumn
+  platformKeywordSearchColumns
 } from "./platform-query-source";
 import { IOS_NATURAL_TABLE } from "./platform";
 import { beijingCompactDate, round, type RevenueMode } from "./shared";
@@ -236,21 +236,29 @@ export type LiveQueryParams = {
   revenueMode: RevenueMode;
 };
 
+// 顶部搜索框：按平台在一列或多列里模糊匹配（多列 OR），参数化防注入。
+function keywordSearchClause(
+  platform: DataPlatform,
+  keyword: string,
+  column: (name: string) => string = (name) => name
+) {
+  const columns = platformKeywordSearchColumns(platform);
+  const parts = columns.map((name) => `${column(name)} LIKE ?`);
+  return {
+    clause: parts.length > 1 ? `(${parts.join(" OR ")})` : parts[0],
+    values: columns.map(() => `%${keyword}%`)
+  };
+}
+
 // 组装可选过滤条件（参数化，防注入）。
 function buildFilters(params: LiveQueryParams, alias = "") {
   const column = (name: string) => (alias ? `${alias}.${name}` : name);
   const clauses: string[] = [`${column("day")} BETWEEN ? AND ?`];
   const values: Array<string> = [params.startDate, params.endDate];
   if (params.keyword) {
-    if (params.platform === "Xiaohongshu") {
-      clauses.push(
-        `(${column("campaign_name")} LIKE ? OR ${column("campaign_id")} LIKE ?)`
-      );
-      values.push(`%${params.keyword}%`, `%${params.keyword}%`);
-    } else {
-      clauses.push(`${column(platformKeywordSearchColumn(params.platform))} LIKE ?`);
-      values.push(`%${params.keyword}%`);
-    }
+    const search = keywordSearchClause(params.platform, params.keyword, column);
+    clauses.push(search.clause);
+    values.push(...search.values);
   }
   if (params.keywordId) {
     clauses.push(`${column("keyword_id")} = ?`);
@@ -529,13 +537,9 @@ async function fetchKeywordHistory(params: LiveQueryParams) {
     values.push(params.adGroupId);
   }
   if (params.keyword) {
-    if (params.platform === "Xiaohongshu") {
-      clauses.push("(campaign_name LIKE ? OR campaign_id LIKE ?)");
-      values.push(`%${params.keyword}%`, `%${params.keyword}%`);
-    } else {
-      clauses.push(`${platformKeywordSearchColumn(params.platform)} LIKE ?`);
-      values.push(`%${params.keyword}%`);
-    }
+    const search = keywordSearchClause(params.platform, params.keyword);
+    clauses.push(search.clause);
+    values.push(...search.values);
   }
 
   const where = `WHERE ${clauses.join(" AND ")}`;

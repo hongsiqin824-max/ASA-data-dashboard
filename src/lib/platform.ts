@@ -38,14 +38,19 @@ export function platformExportPrefix(
 export function keywordEntityOrder(
   platform: DataPlatform
 ): readonly ["parent" | "child", "parent" | "child"] {
-  return platform === "iOS" ? ["child", "parent"] : ["parent", "child"];
+  return platform === "iOS" || platform === "Baidu"
+    ? ["child", "parent"]
+    : ["parent", "child"];
 }
 
 export function platformUi(platform: DataPlatform) {
   if (platform === "Baidu") {
     return {
-      parentEntity: "推广计划",
-      childEntity: "推广单元",
+      // 百度后台叫「推广计划 / 推广单元」，界面按用户要求简称「计划 / 单元」（11-10 定）
+      parentEntity: "计划",
+      childEntity: "关键词",
+      // 计划和关键词之间的一层（同 iOS 的广告组），关键词表/日明细里单独成列
+      adGroupEntity: "单元",
       installMetric: "安装",
       spendSource: "百度广告支出",
       hasChildEntity: true,
@@ -63,6 +68,7 @@ export function platformUi(platform: DataPlatform) {
     return {
       parentEntity: "任务",
       childEntity: "子任务",
+      adGroupEntity: null,
       installMetric: "下载",
       spendSource: "华为广告支出",
       hasChildEntity: true,
@@ -79,6 +85,7 @@ export function platformUi(platform: DataPlatform) {
     return {
       parentEntity: "推广计划",
       childEntity: "计划明细",
+      adGroupEntity: null,
       installMetric: "安装",
       spendSource: "小红书广告支出",
       hasChildEntity: false,
@@ -94,6 +101,7 @@ export function platformUi(platform: DataPlatform) {
   return {
     parentEntity: "计划",
     childEntity: "关键词",
+    adGroupEntity: "广告组",
     installMetric: "安装",
     spendSource: "Apple Ads 支出",
     hasChildEntity: true,

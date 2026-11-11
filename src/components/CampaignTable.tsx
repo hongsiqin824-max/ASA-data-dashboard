@@ -190,10 +190,10 @@ export function CampaignTable({
           <tr>
             <SortableHeader label={ui.parentEntity} sortKey="label" sort={sort} onSort={toggleSort} />
             {ui.hasChildEntity ? (
-              <SortableHeader label={ui.hasIosInstallBreakdown ? "广告组" : ui.childEntity} sortKey="adGroupCount" sort={sort} onSort={toggleSort} />
+              <SortableHeader label={ui.adGroupEntity ?? ui.childEntity} sortKey="adGroupCount" sort={sort} onSort={toggleSort} />
             ) : null}
-            {ui.hasIosInstallBreakdown ? (
-              <SortableHeader label="关键词" sortKey="keywordCount" sort={sort} onSort={toggleSort} />
+            {ui.adGroupEntity ? (
+              <SortableHeader label={ui.childEntity} sortKey="keywordCount" sort={sort} onSort={toggleSort} />
             ) : null}
             <SortableHeader label="展示" sortKey="impressions" sort={sort} onSort={toggleSort} />
             <SortableHeader label="点击" sortKey="taps" sort={sort} onSort={toggleSort} />
@@ -258,7 +258,7 @@ export function CampaignTable({
               <span>{formatNumber(summary.campaignCount)} 个{ui.parentEntity}</span>
             </td>
             {ui.hasChildEntity ? <td>{formatNumber(summary.adGroupCount)}</td> : null}
-            {ui.hasIosInstallBreakdown ? <td>{formatNumber(summary.keywordCount)}</td> : null}
+            {ui.adGroupEntity ? <td>{formatNumber(summary.keywordCount)}</td> : null}
             <td>{formatNumber(summary.impressions)}</td>
             <td>{formatNumber(summary.taps)}</td>
             <td>{formatPercent(summary.ttr)}</td>
@@ -366,7 +366,7 @@ export function CampaignTable({
               </td>
               {ui.hasChildEntity ? (
                 <td>
-                  {!ui.hasIosInstallBreakdown && onOpenKeywords ? (
+                  {!ui.adGroupEntity && onOpenKeywords ? (
                     <button
                       className="table-link-button"
                       type="button"
@@ -379,7 +379,7 @@ export function CampaignTable({
                   )}
                 </td>
               ) : null}
-              {ui.hasIosInstallBreakdown ? <td>
+              {ui.adGroupEntity ? <td>
                 {onOpenKeywords ? (
                   <button
                     className="table-link-button"

@@ -91,10 +91,10 @@ export function CampaignDetailPage({
               ...(ui.hasChildEntity
                 ? [
                     `${formatNumber(campaign.adGroupCount)} 个${
-                      ui.hasIosInstallBreakdown ? "广告组" : ui.childEntity
+                      ui.adGroupEntity ?? ui.childEntity
                     }`,
-                    ...(ui.hasIosInstallBreakdown
-                      ? [`${formatNumber(campaign.keywordCount)} 个关键词`]
+                    ...(ui.adGroupEntity
+                      ? [`${formatNumber(campaign.keywordCount)} 个${ui.childEntity}`]
                       : [])
                   ]
                 : [])

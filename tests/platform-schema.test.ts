@@ -58,12 +58,14 @@ test("鸿蒙按任务和子任务字段执行结构准入，不要求 iOS 专属
   assert.equal(HARMONY_REQUIRED_SOURCE_COLUMNS.includes("ad_revenue_total"), false);
 });
 
-test("百度按推广计划和推广单元字段准入，缺字段时失败", () => {
+test("百度按推广计划、推广单元和关键词字段准入，缺字段时失败", () => {
   const ok = compareRequiredColumns("Baidu", BAIDU_REQUIRED_SOURCE_COLUMNS);
   assert.equal(ok.ok, true);
   assert.deepEqual(ok.missing, []);
   assert.equal(BAIDU_REQUIRED_SOURCE_COLUMNS.includes("plan_id"), true);
   assert.equal(BAIDU_REQUIRED_SOURCE_COLUMNS.includes("unit_id"), true);
+  assert.equal(BAIDU_REQUIRED_SOURCE_COLUMNS.includes("keyword_id"), true);
+  assert.equal(BAIDU_REQUIRED_SOURCE_COLUMNS.includes("keyword"), true);
   assert.equal(BAIDU_REQUIRED_SOURCE_COLUMNS.includes("roi_60d"), true);
 
   const missing = compareRequiredColumns(

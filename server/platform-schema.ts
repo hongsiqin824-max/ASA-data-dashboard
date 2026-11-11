@@ -202,7 +202,8 @@ export const XHS_REQUIRED_SOURCE_COLUMNS = [
   "roi_30d"
 ] as const;
 
-// 百度营销单元级 ROI 日报（hive.ads.ads_ad_baidu_roi_di）：计划 → 单元，无关键词/留存/广告收入。
+// 百度营销 ROI 日报（hive.ads.ads_ad_baidu_roi_di）：计划 → 单元 → 关键词，无留存/广告收入。
+// keyword_id / keyword 是 2026-11-10 数仓新加的列（自动扩量、无关键词或缺失时 keyword_id = -1）。
 export const BAIDU_REQUIRED_SOURCE_COLUMNS = [
   "day",
   "report_date",
@@ -211,6 +212,8 @@ export const BAIDU_REQUIRED_SOURCE_COLUMNS = [
   "plan_name",
   "unit_id",
   "unit_name",
+  "keyword_id",
+  "keyword",
   "impression",
   "click",
   "spend",

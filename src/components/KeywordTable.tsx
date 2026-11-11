@@ -293,8 +293,8 @@ export function KeywordTable({
                   <SortableHeader label={ui.parentEntity} sortKey="campaignName" sort={sort} onSort={toggleSort} />
                 </>
               )}
-              {ui.hasIosInstallBreakdown ? (
-                <SortableHeader label="广告组" sortKey="adGroupName" sort={sort} onSort={toggleSort} />
+              {ui.adGroupEntity ? (
+                <SortableHeader label={ui.adGroupEntity} sortKey="adGroupName" sort={sort} onSort={toggleSort} />
               ) : null}
               <SortableHeader label="首投日" sortKey="firstDate" sort={sort} onSort={toggleSort} />
               <SortableHeader label="投放天数" sortKey="activeDays" sort={sort} onSort={toggleSort} />
@@ -374,7 +374,7 @@ export function KeywordTable({
               {ui.hasChildEntity ? (
                 <td>{formatNumber(summary.keywordCount)} 个{ui.childEntity}</td>
               ) : null}
-              {ui.hasIosInstallBreakdown ? <td>-</td> : null}
+              {ui.adGroupEntity ? <td>-</td> : null}
               <td>-</td>
               <td>-</td>
               <td>{formatNumber(summary.impressions)}</td>
@@ -475,7 +475,7 @@ export function KeywordTable({
                     <td>{row.campaignName || row.campaignId}</td>
                   </>
                 )}
-                {ui.hasIosInstallBreakdown ? <td>{row.adGroupName}</td> : null}
+                {ui.adGroupEntity ? <td>{row.adGroupName || row.adGroupId}</td> : null}
                 <td>{row.firstDate ?? "-"}</td>
                 <td>{row.activeDays > 0 ? `${formatNumber(row.activeDays)} 天` : "-"}</td>
                 <td>{formatNumber(row.impressions)}</td>

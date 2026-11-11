@@ -81,7 +81,7 @@ iOS：hive.ads.ads_ad_ios_asa_roi_di
 iOS 自然量（附属）：hive.ads.ads_ad_ios_natural_user_di
 鸿蒙：hive.ads.ads_ad_hm_roi_di
 小红书：hive.ads.ads_ad_xhs_roi_di
-百度：hive.ads.ads_ad_baidu_roi_di（推广计划 → 推广单元，无关键词/留存/广告收入）
+百度：hive.ads.ads_ad_baidu_roi_di（推广计划 → 推广单元 → 关键词，界面简称计划 / 单元；无留存/广告收入）
 ```
 
 项目只展示数仓查询返回的真实数据，不对缺失 ROI 窗口补值或沿用前一窗口数据。小红书源表没有广告组、关键词或子任务字段，因此页面和导出不会构造这些下级维度。
@@ -161,5 +161,6 @@ npm run pregenerate-advice
 
 ### 变更记录
 - 2026-11-04：新增第四个平台「百度」（`platform=Baidu`），接入 `hive.ads.ads_ad_baidu_roi_di`；推广计划映射为计划、推广单元映射为下级（同鸿蒙任务/子任务），付费 UV 与其他平台一致取 `pay_uv`；表中无安装数，付费率列改显示付费 UV；支持列表/日期视图与 CSV 导出，纳入 `check:platform-schema` 与启动预热。
+- 2026-11-10：百度改为关键词粒度（数仓表新增 `keyword_id` / `keyword`），按 iOS 样式显示，界面把「推广计划 / 推广单元」简称「计划 / 单元」：关键词列表为「关键词 | 计划 | 单元」，计划表同时显示单元数与关键词数（不单独做单元页签，需要时再加）；`keyword_id` 为 -1 / 空（自动扩量、无关键词、归因缺失）的行同 iOS 按推广单元归成一行 -1「未匹配关键词」（数仓 20261110 分区起才按关键词拆分，之前分区全是 -1，也归在这一行，所以文案不写「自动扩量」）；搜索框同时匹配关键词和计划名；4 个百度导出补上关键词 / 单元列，表头同样用简称；前端缓存升到 v15。
 - 2026-10-24：iOS 新增「自然量」tab，接入 `hive.ads.ads_ad_ios_natural_user_di`（自然量激活/注册/8 档留存），与同日 ASA 激活/注册对照并给出占比；数据随 `/api/asa/keyword-roi` 响应附带（`naturalDailyRows` / `naturalDataAsOfDate`），复用服务端缓存与查询/刷新语义；前端缓存版本升至 v13。
 - 2026-10-15：补全 README 能力概览、文件说明、重要限制与后续规划章节。
